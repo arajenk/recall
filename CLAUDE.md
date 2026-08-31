@@ -12,6 +12,10 @@ Delete instructions that have stopped being true instead of leaving them in plac
 future session will trust this file, so a stale line here is worse than a missing one. The
 project status section below goes out of date fastest.
 
+`AGENTS.md` is a pointer to this file and nothing more. Some tools look for that name and
+will write their own copy if they do not find one, which is how a version claiming this
+was a Codex server briefly ended up in the repo. Keep it a pointer.
+
 ## What this is
 
 A local MCP server for Claude Desktop. You pick the `save-memory` prompt, and the model
