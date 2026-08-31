@@ -1,4 +1,4 @@
-# Recall — conversation extraction prompt
+# Recall extraction prompt
 
 > Canonical prompt. Every path uses this file: manual paste testing, the MCP
 > `save-memory` prompt, and the clipboard fallback. Do not fork it per platform.
@@ -20,23 +20,23 @@ behind choices, and context a future reader would need to pick this thread back 
 
 Leave out the back-and-forth of how we got there, restated context, pleasantries, code
 that lives in the repo anyway, and anything already obvious from the files themselves.
-If a point wouldn't change what someone does later, it isn't memory — cut it.
+If a point wouldn't change what someone does later, it is not memory. Cut it.
 
-## Attribution — the rule that matters most
+## Attribution: the rule that matters most
 
 Every line carries a tag marking where it came from:
 
-- `[decision]` — the user stated it, chose it, or committed to it
-- `[agreed]` — you proposed it and the user explicitly accepted it
-- `[suggested]` — you raised it and the user never responded either way
-- `[assumption]` — inferred from context, never confirmed by the user
-- `[corrected]` — was believed earlier in the conversation and later turned out wrong
-- `[context]` — background worth keeping that is not a claim about who decided what
-- `[claim]` — a fact you introduced yourself, which nobody has verified
+- `[decision]`: the user stated it, chose it, or committed to it
+- `[agreed]`: you proposed it and the user explicitly accepted it
+- `[suggested]`: you raised it and the user never responded either way
+- `[assumption]`: inferred from context, never confirmed by the user
+- `[corrected]`: was believed earlier in the conversation and later turned out wrong
+- `[context]`: background worth keeping that is not a claim about who decided what
+- `[claim]`: a fact you introduced yourself, which nobody has verified
 
 **You must never record something you generated as something the user said.** If you
 cannot point to a specific message where the user said or accepted a thing, it is
-`[suggested]` or `[assumption]` — never `[decision]` or `[agreed]`. Enthusiasm is not
+`[suggested]` or `[assumption]`, never `[decision]` or `[agreed]`. Enthusiasm is not
 agreement. Silence is not agreement. The user moving on to the next topic is not
 agreement.
 
@@ -54,7 +54,7 @@ author, year, or figure, say what the finding was and admit you are unsure of th
 rather than producing a precise-looking citation that might be wrong. A half-remembered
 reference recorded confidently is worse than no reference.
 
-For `[corrected]`, keep both halves — what was believed, and what replaced it — on one
+For `[corrected]`, keep both halves: what was believed, and what replaced it, on one
 line. A future reader needs to know the wrong turn was already taken, so they don't
 take it again.
 
@@ -65,7 +65,7 @@ happened, and you must not conflate them.
 
 You cannot see message timestamps, and the current date tells you nothing about a
 conversation that started weeks ago. So supply `conversation_date` **only** when you have
-real evidence — the user said when it was, or the conversation contains dated content.
+real evidence: the user said when it was, or the conversation contains dated content.
 When you do, say how you know in `conversation_date_basis`.
 
 Otherwise leave it out. Unknown is a perfectly good answer; a guessed date is not, because
@@ -82,7 +82,7 @@ The folders that already exist in the user's notes folder:
 If folders are listed, choose the one that already fits and use its exact path. Nested
 paths like `Work/Acme` are real nested folders, not alternatives.
 
-Create a new folder only when nothing listed genuinely fits — which, on an empty or nearly
+Create a new folder only when nothing listed genuinely fits. On an empty or nearly
 empty vault, will be most of the time. Name it for a **durable area of the user's life or
 work** that will accumulate many notes, not for the subject of this one conversation. If
 the folder would only ever hold this single note, it is too specific: go one level
@@ -90,19 +90,19 @@ broader. The early folders set the shape of everything filed later, so bias towa
 and few.
 
 **Top-level folders are areas, never projects.** A named project belongs *inside* the area
-it serves — `Work/Acme`, not `Acme`. Projects start, get renamed, and get abandoned;
+it serves: `Work/Acme`, not `Acme`. Projects start, get renamed, and get abandoned;
 areas don't. A vault whose top level fills up with project names stops being navigable
 after a dozen of them.
 
 Two areas that are easy to confuse, and shouldn't be:
 
-- `Work/` — things done for money. Businesses, clients, revenue.
-- `Projects/` — side projects, each in its own subfolder (`Projects/Recall`,
+- `Work/`: things done for money. Businesses, clients, revenue.
+- `Projects/`: side projects, each in its own subfolder (`Projects/Recall`,
   `Projects/Sidecar`). A side project stays here even if it might become a business
   one day; move it only once it actually earns.
 
 **When one save produces several notes, their folders must form a coherent tree.** Never
-create sibling top-level folders that mean the same thing — `Business` and `Work` are one
+create sibling top-level folders that mean the same thing. `Business` and `Work` are one
 area under two names, not two areas. Choose one name and nest the rest under it. Check the
 folders you're about to create against each other, and against the existing tree, before
 committing to them.
@@ -116,7 +116,7 @@ different name than it had before, say so rather than filing a near-duplicate.
 ## One note, or several?
 
 **Do this before writing anything.** List the distinct subjects this conversation
-covered. For each one, name the folder it would be filed under — including folders that
+covered. For each one, name the folder it would be filed under, including folders that
 don't exist yet. Then:
 
 - Subjects that would land in **different folders** are **different notes**.
@@ -127,16 +127,16 @@ not which folders happen to exist right now.
 
 Two things reliably deserve their own note:
 
-- A **separate ongoing project** — it accumulates its own history across many
+- A **separate ongoing project**. It accumulates its own history across many
   conversations and must not be buried inside another subject's note.
-- A **different area of life** — work, content, health, relationships. A conversation that
+- A **different area of life**: work, content, health, relationships. A conversation that
   drifts from a business problem into what to film this weekend is two notes, always.
 
 Default to one note when subjects genuinely belong together. But burying an unrelated
 subject inside a note titled for something else is the worse failure of the two: it is
 filed where the user will never look for it, which is the same as losing it.
 
-Each note is titled for its own subject and stands on its own — never write notes that
+Each note is titled for its own subject and stands on its own. Never write notes that
 only make sense read together.
 
 ## If this conversation was saved before
@@ -151,15 +151,15 @@ and hasn't been touched since, leave its note exactly as it is.
 When updating, produce the **updated whole note**, not an addition to it. Fold new
 information in where it belongs. Apply corrections rather than stacking them. Drop points
 that turned out to be dead ends, unless the dead end itself is worth remembering. The
-visible note is always the clean current picture — its history is preserved separately,
+visible note is always the clean current picture. Its history is preserved separately,
 so you don't need to carry old material forward for safekeeping.
 
 ## Every note is written twice
 
 Each note has two halves, saved together in one call. They cover the same ground for
-different readers, so write both from the same understanding — never let them disagree.
+different readers, so write both from the same understanding, never let them disagree.
 
-### The readable note — `content`
+### The readable note, `content`
 
 This is the one the user actually reads. Prose, not a log. It should read start to finish
 like something a thoughtful person wrote down after the conversation.
@@ -167,7 +167,7 @@ like something a thoughtful person wrote down after the conversation.
 ```markdown
 # <short specific title>
 
-<2–4 short paragraphs: what this was about, what got decided and why, what is
+<2 to 4 short paragraphs: what this was about, what got decided and why, what is
 still open. Written to the user as "you". No bracket tags anywhere.>
 ```
 
@@ -192,12 +192,10 @@ Hard rules:
 
 1. **No em dashes or en dashes anywhere.** Use a period, a comma, a colon, or parentheses.
    This one is absolute. Check the finished text for the characters before you send it.
-   These instructions use em dashes freely. The note must not. Do not copy the style of
-   this prompt, follow what it says.
 2. **Straight quotes only**, never curly ones.
 3. **No bold sprinkled through the prose**, no emoji, no headers inside the note.
 
-Do not use these, they are the giveaways that a machine wrote it:
+Do not use these. These are the giveaways that a machine wrote it:
 
 - Padding words: delve, testament, underscore, showcase, vibrant, tapestry, landscape
   (when abstract), pivotal, crucial, foster, intricate, robust, seamless, enhance.
@@ -220,20 +218,20 @@ room. Even, mid-length cadence across every sentence is itself a tell.
 Above all, record what happened. Do not counsel, encourage, or soften. If something went
 badly, write that it went badly and move on.
 
-### The detail note — `detail`
+### The detail note, `detail`
 
 The machine-facing counterpart, filed out of the way. Precision matters here, readability
 doesn't. Be as technical and complete as the conversation supports.
 
 ```markdown
-# <same title> — detail
+# <same title>, detail
 
 ## Decisions
-- [decision] ... — evidence: <what the user actually said>
+- [decision] ..., evidence: <what the user actually said>
 
 ## Open / unresolved
 - [suggested] ...
-- [assumption] ... — confidence: low/medium/high
+- [assumption] ..., confidence: low/medium/high
 
 ## Context worth keeping
 - ...
@@ -243,19 +241,19 @@ doesn't. Be as technical and complete as the conversation supports.
 ```
 
 Drop any section that would be empty. Add evidence, confidence, and any metadata worth
-keeping — this half exists so the readable note doesn't have to carry it, and so a future
+keeping, this half exists so the readable note doesn't have to carry it, and so a future
 tool can assemble a context pack from something rigorous.
 
 **Write to the user, not about them.** These are their own notes. Address them as "you", or
 leave the subject implicit ("Left the partnership over the equity split"). Never repeat
-their name line after line — it reads like a case file written by a stranger.
+their name line after line, it reads like a case file written by a stranger.
 
 **Length is a hard constraint on the readable note:**
 
 - At most **400 words**. This is binding.
 - One idea per bullet in the detail note, one line per bullet. If a bullet needs a
   semicolon, a dash, or the word "and also" to hold itself together, it is several
-  bullets — or a sign the subject deserves its own note.
+  bullets, or a sign the subject deserves its own note.
 - At most **12 bullets in any one section** of the detail note. A section longer than that
   is narrative, or a sign you failed to split the conversation into separate notes.
 
