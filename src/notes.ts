@@ -11,7 +11,7 @@ export interface NoteToSave {
   /** The machine-facing counterpart: attribution tags, evidence, confidence. */
   detail: string;
   /**
-   * When the conversation actually happened, if — and only if — that is known
+   * When the conversation actually happened, if, and only if, that is known
    * from evidence. MCP exposes no conversation metadata to the server, and the
    * model cannot see message timestamps either, so this is absent far more
    * often than not. Absent means unknown; it must never quietly become today.
@@ -50,7 +50,7 @@ function filenameFor(title: string): string {
 
 /**
  * `saved` and `updated` are stamped by the server, which is the only party here
- * that actually knows the time. They describe when Recall wrote the note — not
+ * that actually knows the time. They describe when Recall wrote the note, not
  * when the conversation happened, which is a different fact Recall usually
  * cannot know. Keeping them separate is what stops an old thread saved today
  * from later reading as fresh.

@@ -139,7 +139,7 @@ test('writes the readable note and its detail counterpart at mirrored paths', as
     folder: 'Work/Acme',
     title: 'Partnership',
     content: '# Partnership\n\nYou walked over the equity split.\n',
-    detail: '# Partnership — detail\n\n- [decision] Left over equity.\n',
+    detail: '# Partnership detail\n\n- [decision] Left over equity.\n',
   });
 
   assert.deepEqual(written, {

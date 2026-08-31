@@ -14,7 +14,7 @@ import { log } from './log.ts';
 
 const VAULT_ROOT = process.env.RECALL_VAULT ?? path.join(os.homedir(), 'Recall');
 
-const EMPTY_TREE = '(none yet — the vault is empty)';
+const EMPTY_TREE = '(none yet, the vault is empty)';
 
 /**
  * Phase 2 is create-only. Saying so in the prompt keeps the model from trying to
@@ -26,7 +26,7 @@ const NO_EXISTING_NOTES =
 
 const OUTPUT_INSTRUCTION =
   'Call `recall_save_note` once for each note you decided to write, passing both halves ' +
-  '(`content` and `detail`) in the same call. Do not print the notes into the chat — the ' +
+  '(`content` and `detail`) in the same call. Do not print the notes into the chat. The ' +
   'tool is what files them. After the calls, reply with one short line per note saying ' +
   'where it was filed, and flag any folder you created.';
 
@@ -38,7 +38,7 @@ export function createServer(): McpServer {
     {
       title: 'List the Recall vault',
       description:
-        "Lists the folders in the user's own Recall vault — a plain folder of markdown " +
+        "Lists the folders in the user's own Recall vault. A plain folder of markdown " +
         "notes on their disk. This is NOT Claude's built-in memory. Call this before " +
         'choosing where to file a note, so notes land in folders that already exist.',
       inputSchema: {},
@@ -83,7 +83,7 @@ export function createServer(): McpServer {
           .string()
           .optional()
           .describe(
-            'ONLY when you have real evidence of when this conversation happened — the ' +
+            'ONLY when you have real evidence of when this conversation happened: the ' +
               'user stated it, or the conversation contains dated content. You cannot see ' +
               'message timestamps, and today\'s date is not evidence about an older thread. ' +
               'Omit when unknown; never guess. Format YYYY-MM-DD.',

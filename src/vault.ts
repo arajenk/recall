@@ -26,7 +26,7 @@ export const DETAIL_ROOT = '_detail';
  * Every folder in the vault, as relative paths, for the model to file against.
  *
  * Skips dot-prefixed folders (`.recall` is bookkeeping) and the detail tree,
- * which mirrors the real taxonomy rather than being part of it — offering it
+ * which mirrors the real taxonomy rather than being part of it. Offering it
  * would invite the model to file notes into it.
  */
 export async function listFolders(vaultRoot: string): Promise<string[]> {
