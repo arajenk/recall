@@ -38,6 +38,7 @@ Every line carries a tag marking where it came from:
 - `[assumption]` — inferred from context, never confirmed by me
 - `[corrected]` — was believed earlier in the conversation and later turned out wrong
 - `[context]` — background worth keeping that is not a claim about who decided what
+- `[claim]` — a fact you introduced yourself, which nobody has verified
 
 **You must never record something you generated as something I said.** If you cannot
 point to a specific message where I said or accepted a thing, it is `[suggested]` or
@@ -45,6 +46,16 @@ point to a specific message where I said or accepted a thing, it is `[suggested]
 is not agreement. Me moving on to the next topic is not agreement.
 
 When you are unsure which tag applies, choose the weaker one.
+
+**Outside facts are yours, not mine.** Statistics, studies, citations, dates, technical
+claims: if it came out of your own knowledge rather than out of the conversation, it is
+`[claim]`, and the readable half has to say where it came from too ("I mentioned a study,
+which you haven't checked"). Never write one as a bare fact in either half.
+
+A number or a citation reads as authoritative months later, long after anyone remembers a
+chatbot volunteered it. If you are not certain of an author, year, or figure, say what the
+finding was and admit you are unsure of the source rather than producing a precise-looking
+citation that might be wrong.
 
 For `[corrected]`, keep both halves — what was believed, and what replaced it — on one
 line. A future reader needs to know the wrong turn was already taken.
