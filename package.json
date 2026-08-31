@@ -1,0 +1,20 @@
+{
+  "name": "recall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turns AI conversations into organized local markdown memory",
+  "type": "module",
+  "bin": {
+    "recall": "src/server.ts"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
