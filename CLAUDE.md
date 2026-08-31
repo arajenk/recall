@@ -61,6 +61,9 @@ npm test        # node's built-in runner, no build step
 npm start       # stdio server, mostly useful for piping raw JSON-RPC at it
 ```
 
+Needs Node 24 or newer, since the code imports `.ts` files directly and relies on native
+type stripping with no build step. Only tested on 25.
+
 Registered in `~/Library/Application Support/Claude/claude_desktop_config.json` with an
 absolute node path, since Claude Desktop launches without your shell PATH. Restart the app
 to pick up code changes.
