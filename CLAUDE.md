@@ -2,6 +2,16 @@
 
 Notes for anyone picking this up, including future me.
 
+## Keep this file current
+
+If a change touches the architecture, the commands, the file layout, the requirements, or
+the project status, update this file in the same change. Not afterwards, and not in a
+follow-up commit.
+
+Delete instructions that have stopped being true instead of leaving them in place. A
+future session will trust this file, so a stale line here is worse than a missing one. The
+project status section below goes out of date fastest.
+
 ## What this is
 
 A local MCP server for Claude Desktop. You pick the `save-memory` prompt, and the model
