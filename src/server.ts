@@ -7,28 +7,22 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { listFolders } from './vault.ts';
-import { saveNote } from './notes.ts';
-import { buildPrompt } from './prompt.ts';
+import { listFolders, listNotes } from './vault.ts';
+import { saveNote, readNote, updateNote } from './notes.ts';
+import { buildPrompt, describeExistingNotes } from './prompt.ts';
 import { log } from './log.ts';
 
 const VAULT_ROOT = process.env.RECALL_VAULT ?? path.join(os.homedir(), 'Recall');
 
 const EMPTY_TREE = '(none yet, the vault is empty)';
 
-/**
- * Phase 2 is create-only. Saying so in the prompt keeps the model from trying to
- * merge into a note it cannot yet read.
- */
-const NO_EXISTING_NOTES =
-  'Updating existing notes is not supported yet. Treat every note as new. ' +
-  'If a note already exists at the path you choose, the save will fail and you should report that.';
-
 const OUTPUT_INSTRUCTION =
-  'Call `recall_save_note` once for each note you decided to write, passing both halves ' +
-  '(`content` and `detail`) in the same call. Do not print the notes into the chat. The ' +
-  'tool is what files them. After the calls, reply with one short line per note saying ' +
-  'where it was filed, and flag any folder you created.';
+  'For a new subject, call `recall_save_note`. For a subject that already has a note, ' +
+  'call `recall_read_note` for its current text and then `recall_update_note` with the ' +
+  'rewritten whole. Either way pass both halves (`content` and `detail`) in the same ' +
+  'call, one call per note. Do not print the notes into the chat. The tools are what ' +
+  'file them. Afterwards, reply with one short line per note saying where it was filed ' +
+  'and whether it was created or updated, and flag any folder you created.';
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: 'recall', version: '0.1.0' });
@@ -126,6 +120,109 @@ export function createServer(): McpServer {
     },
   );
 
+  server.registerTool(
+    'recall_read_note',
+    {
+      title: 'Read a note from the Recall vault',
+      description:
+        'Returns both halves of a note that is already in the vault, without their ' +
+        'frontmatter. Call this before updating a note, so the rewrite folds into what ' +
+        'is really there instead of what you remember writing.',
+      inputSchema: {
+        path: z
+          .string()
+          .describe('Vault-relative path of the note, e.g. "Work/Acme/Renewal Terms.md".'),
+      },
+    },
+    async ({ path: notePath }) => {
+      log(VAULT_ROOT, `recall_read_note called: path=${notePath}`);
+      try {
+        const note = await readNote(VAULT_ROOT, notePath);
+        log(VAULT_ROOT, `recall_read_note returned ${notePath}`);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `## content\n\n${note.content}\n\n## detail\n\n${note.detail}`,
+            },
+          ],
+        };
+      } catch (error) {
+        log(VAULT_ROOT, `recall_read_note failed: ${(error as Error).message}`);
+        return { isError: true, content: [{ type: 'text', text: (error as Error).message }] };
+      }
+    },
+  );
+
+  server.registerTool(
+    'recall_update_note',
+    {
+      title: 'Update a note in the Recall vault',
+      description:
+        'Replaces both halves of a note that already exists, keeping the version it ' +
+        'replaced in the archive. Pass the rewritten whole note, not the new part alone. ' +
+        'Refuses a path with no note at it, so a new subject goes to `recall_save_note`.',
+      inputSchema: {
+        path: z
+          .string()
+          .describe('Vault-relative path of the note being updated, as `recall_read_note` took it.'),
+        content: z
+          .string()
+          .describe(
+            'The rewritten READABLE half, whole: old material folded together with new, ' +
+              'corrections applied, still prose written to the user as "you", no bracket ' +
+              'tags. Starts with its "# " heading.',
+          ),
+        detail: z
+          .string()
+          .describe(
+            'The rewritten DETAIL half, whole: tagged bullets ([decision], [agreed], ' +
+              '[suggested], [assumption], [corrected]) with evidence and confidence. ' +
+              'Starts with its "# " heading.',
+          ),
+        conversation_date: z
+          .string()
+          .optional()
+          .describe(
+            'Only to correct or newly establish it from real evidence. Left out, the ' +
+              'date already on the note is kept. Format YYYY-MM-DD.',
+          ),
+        conversation_date_basis: z
+          .string()
+          .optional()
+          .describe('How conversation_date was established. Required whenever it is given.'),
+      },
+    },
+    async ({ path: notePath, content, detail, conversation_date, conversation_date_basis }) => {
+      log(
+        VAULT_ROOT,
+        `recall_update_note called: path=${notePath} ` +
+          `content=${content?.length ?? 0}b detail=${detail?.length ?? 0}b`,
+      );
+      try {
+        const written = await updateNote(VAULT_ROOT, {
+          path: notePath,
+          content,
+          detail,
+          conversationDate: conversation_date,
+          conversationDateBasis: conversation_date_basis,
+        });
+        log(VAULT_ROOT, `recall_update_note wrote ${written.note}, archived ${written.archived.note}`);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Updated ${written.note} (previous version archived at ${written.archived.note})`,
+            },
+          ],
+        };
+      } catch (error) {
+        log(VAULT_ROOT, `recall_update_note failed: ${(error as Error).message}`);
+        return { isError: true, content: [{ type: 'text', text: (error as Error).message }] };
+      }
+    },
+  );
+
   server.registerPrompt(
     'save-memory',
     {
@@ -136,10 +233,10 @@ export function createServer(): McpServer {
       argsSchema: {},
     },
     async () => {
-      const folders = await listFolders(VAULT_ROOT);
+      const [folders, notes] = await Promise.all([listFolders(VAULT_ROOT), listNotes(VAULT_ROOT)]);
       const text = await buildPrompt({
         FOLDER_TREE: folders.length ? folders.join('\n') : EMPTY_TREE,
-        EXISTING_NOTES: NO_EXISTING_NOTES,
+        EXISTING_NOTES: describeExistingNotes(notes),
         OUTPUT_INSTRUCTION,
       });
 

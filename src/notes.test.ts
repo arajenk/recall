@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { saveNote } from './notes.ts';
+import { saveNote, readNote, updateNote } from './notes.ts';
 import { listFolders } from './vault.ts';
 
 async function emptyVault(): Promise<string> {
@@ -43,14 +43,14 @@ test('strips path separators from a title so it cannot create folders', async ()
   assert.deepEqual(await fs.readdir(path.join(root, 'Work')), ['Q1-Q2 planning- draft.md']);
 });
 
-test('refuses to overwrite an existing note while archiving does not exist', async () => {
+test('refuses to overwrite an existing note, pointing at the update path instead', async () => {
   const root = await emptyVault();
   const note = { folder: 'Work', title: 'Notes', content: 'original' };
   await saveNote(root, note);
 
   await assert.rejects(
     () => saveNote(root, { ...note, content: 'replacement' }),
-    /already exists/,
+    /already exists.*update tool/s,
   );
   assert.ok((await fs.readFile(path.join(root, 'Work/Notes.md'), 'utf8')).endsWith('original'));
 });
@@ -186,4 +186,176 @@ test('keeps the detail tree out of the folders offered to the model', async () =
   await saveNote(root, { folder: 'Work', title: 'N', content: 'x', detail: 'y' });
 
   assert.deepEqual(await listFolders(root), ['Work']);
+});
+
+test('reads back both halves of a pair without the frontmatter', async () => {
+  const root = await emptyVault();
+  await saveNote(root, {
+    folder: 'Work',
+    title: 'Renewal',
+    content: '# Renewal\n\nThe readable half.\n',
+    detail: '# Renewal\n\n- [decision] the detail half\n',
+  });
+
+  const read = await readNote(root, 'Work/Renewal.md');
+
+  assert.equal(read.content, '# Renewal\n\nThe readable half.\n');
+  assert.equal(read.detail, '# Renewal\n\n- [decision] the detail half\n');
+});
+
+test('refuses to read a note whose detail half is missing', async () => {
+  const root = await emptyVault();
+  await saveNote(root, { folder: 'Work', title: 'Renewal', content: 'a', detail: 'b' });
+  await fs.rm(path.join(root, '_detail/Work/Renewal.md'));
+
+  await assert.rejects(() => readNote(root, 'Work/Renewal.md'), /_detail\/Work\/Renewal\.md/);
+});
+
+test('refuses to read a note that is not there', async () => {
+  const root = await emptyVault();
+
+  await assert.rejects(() => readNote(root, 'Work/Missing.md'), /no note at/i);
+});
+
+test('refuses to read a path that escapes the vault', async () => {
+  const root = await emptyVault();
+
+  await assert.rejects(() => readNote(root, '../../.ssh/id_rsa'), /outside the vault/);
+});
+
+const SAVED_AT = new Date('2026-03-01T10:00:00Z');
+const UPDATED_AT = new Date('2026-08-31T19:22:00Z');
+
+async function savedPair(root: string) {
+  return saveNote(
+    root,
+    {
+      folder: 'Work',
+      title: 'Renewal',
+      content: '# Renewal\n\nThe original readable half.\n',
+      detail: '# Renewal\n\n- [decision] the original detail\n',
+    },
+    { now: SAVED_AT },
+  );
+}
+
+test('keeps the date the note was first saved and moves only the updated date', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await updateNote(
+    root,
+    { path: 'Work/Renewal.md', content: '# Renewal\n\nRewritten.\n', detail: '# d\n' },
+    { now: UPDATED_AT },
+  );
+
+  const raw = await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8');
+  assert.match(raw, /saved: 2026-03-01/);
+  assert.match(raw, /updated: 2026-08-31/);
+});
+
+test('archives the text of both halves as they were before the update', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  const written = await updateNote(
+    root,
+    { path: 'Work/Renewal.md', content: '# Renewal\n\nRewritten.\n', detail: '# new detail\n' },
+    { now: UPDATED_AT },
+  );
+
+  const archivedNote = await fs.readFile(path.join(root, written.archived.note), 'utf8');
+  const archivedDetail = await fs.readFile(path.join(root, written.archived.detail), 'utf8');
+  assert.match(archivedNote, /The original readable half/);
+  assert.match(archivedDetail, /the original detail/);
+  assert.match(
+    await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8'),
+    /Rewritten/,
+  );
+});
+
+test('keeps every earlier version rather than replacing the last archive entry', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+  const first = await updateNote(
+    root,
+    { path: 'Work/Renewal.md', content: 'second', detail: 'second' },
+    { now: UPDATED_AT },
+  );
+  const second = await updateNote(
+    root,
+    { path: 'Work/Renewal.md', content: 'third', detail: 'third' },
+    { now: new Date('2026-09-01T08:00:00Z') },
+  );
+
+  assert.notEqual(first.archived.note, second.archived.note);
+  const versions = await fs.readdir(path.join(root, '.recall/archive/Work/Renewal'));
+  assert.equal(versions.length, 2);
+});
+
+test('refuses to update a note that was never saved', async () => {
+  const root = await emptyVault();
+
+  await assert.rejects(
+    () => updateNote(root, { path: 'Work/Missing.md', content: 'a', detail: 'b' }),
+    /no note at/i,
+  );
+});
+
+test('leaves the readable half at its original text when the detail half cannot be written', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+  const detailPath = path.join(root, '_detail/Work/Renewal.md');
+  await fs.chmod(detailPath, 0o444);
+
+  await assert.rejects(() =>
+    updateNote(
+      root,
+      { path: 'Work/Renewal.md', content: 'rewritten', detail: 'rewritten detail' },
+      { now: UPDATED_AT },
+    ),
+  );
+
+  await fs.chmod(detailPath, 0o644);
+  assert.match(
+    await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8'),
+    /The original readable half/,
+  );
+});
+
+test('carries the conversation date forward instead of dropping it on update', async () => {
+  const root = await emptyVault();
+  await saveNote(
+    root,
+    {
+      folder: 'Work',
+      title: 'Renewal',
+      content: 'a',
+      detail: 'b',
+      conversationDate: '2026-02-14',
+      conversationDateBasis: 'the user said this thread was from Valentine\'s Day',
+    },
+    { now: SAVED_AT },
+  );
+
+  await updateNote(
+    root,
+    { path: 'Work/Renewal.md', content: 'c', detail: 'd' },
+    { now: UPDATED_AT },
+  );
+
+  const raw = await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8');
+  assert.match(raw, /conversation_date: 2026-02-14/);
+  assert.match(raw, /conversation_date_basis: the user said/);
+});
+
+test('explains a collision even when two saves of one title race each other', async () => {
+  const root = await emptyVault();
+  const note = { folder: 'Work', title: 'Renewal', content: 'a', detail: 'b' };
+
+  const results = await Promise.allSettled([saveNote(root, note), saveNote(root, note)]);
+  const rejected = results.filter((r) => r.status === 'rejected');
+
+  assert.equal(rejected.length, 1);
+  assert.match((rejected[0] as PromiseRejectedResult).reason.message, /already exists.*update tool/s);
 });

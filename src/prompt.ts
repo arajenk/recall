@@ -35,3 +35,23 @@ export async function buildPrompt(values: PromptValues): Promise<string> {
 
   return filled;
 }
+
+/**
+ * The inventory the model matches this conversation against.
+ *
+ * Paths only. The bodies stay on disk and are fetched one at a time, because a
+ * vault of any size would otherwise send the whole thing to update one note.
+ */
+export function describeExistingNotes(notes: string[]): string {
+  if (!notes.length) {
+    return 'No notes saved yet. The vault is empty, so everything here is new.';
+  }
+
+  return (
+    'Notes already in the vault:\n\n' +
+    notes.map((note) => `- ${note}`).join('\n') +
+    '\n\nThese are paths, not contents. Before you rewrite one, call `recall_read_note` ' +
+    'with its path to read both halves, so you fold new material into what is actually ' +
+    'there rather than writing over it from memory.'
+  );
+}

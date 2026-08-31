@@ -3,16 +3,19 @@
 One button turns a useful AI conversation into organized, persistent memory. Clean `.md`
 files in a plain local folder you can open in Obsidian, VS Code, or anything else.
 
-Status: **Phase 2 working.** Claude Desktop can save notes into `~/Recall`. Updating an
-existing note isn't supported yet (Phase 3).
+Status: **Phase 3 working.** Claude Desktop saves notes into `~/Recall`, and a
+conversation that carries on a subject you've saved before updates that note instead of
+filing a near-duplicate beside it. Every version it replaces is kept.
 
 ## How it works
 
-A local MCP server exposes a `save-memory` prompt and two tools. You pick the prompt in
+A local MCP server exposes a `save-memory` prompt and four tools. You pick the prompt in
 Claude Desktop; the model, already holding the whole conversation, decides what's worth
-keeping, splits it by subject, and calls `recall_save_note` once per note. The summarizing
-happens inside the conversation you're already in, so there's no second model, no API key,
-and no extra cost.
+keeping and splits it by subject. The prompt hands it the list of notes you already have,
+so it works out on its own which subjects are new and which continue something already
+filed, then calls `recall_save_note` or `recall_update_note` once per note. There is
+nothing extra for you to do either way. The summarizing happens inside the conversation
+you're already in, so there's no second model, no API key, and no extra cost.
 
 ## Setup
 
@@ -26,10 +29,11 @@ Vault defaults to `~/Recall`; override with the `RECALL_VAULT` env var.
 
 Have a real conversation, then run the `save-memory` prompt. The model will:
 
-1. call `recall_list_vault` to see your existing folders
-2. split the conversation by subject, different destination folder means a different note
-3. call `recall_save_note` per note
-4. tell you where each landed and which folders it created
+1. split the conversation by subject, different destination folder means a different note
+2. match those subjects against the notes already in your vault
+3. call `recall_read_note` on any note it's continuing, to see what's actually there
+4. call `recall_save_note` for new subjects, `recall_update_note` for continued ones
+5. tell you where each landed, which were updated, and which folders it created
 
 Check the folders it creates, especially early. The vault starts empty, so the first
 several saves define your taxonomy, and a bad guess is much cheaper to fix at ten notes
@@ -53,6 +57,13 @@ They cannot drift apart: one tool call writes both or neither, they mirror each 
 paths, and each points at the other in frontmatter. There is no code path that produces
 one alone.
 
+An update rewrites the whole note rather than appending to it, so what you read is always
+the current picture rather than a changelog. The version it replaced goes to
+`~/Recall/.recall/archive/`, both halves, one timestamped file per version. Nothing is
+overwritten without a copy being kept first, which is the only reason updating in place is
+allowed at all. The archive lives in a dot-folder, so Obsidian and the model both ignore
+it.
+
 The rule the product lives on holds in both halves: the model must never record something
 it generated as something you said. In the detail note that's the tag; in the readable
 note it's the wording ("you decided" vs "I suggested it and you didn't take a position").
@@ -62,7 +73,9 @@ subfolder each. Top-level folders are areas, never project names.
 
 ## Dates, and what Recall honestly knows
 
-Each note carries `saved` / `updated`, stamped by the server. It is the only party here that
+Each note carries `saved` / `updated`, stamped by the server. When a note is updated,
+`saved` stays put and only `updated` moves, so a note you revised last week doesn't start
+claiming it was written last week. It is the only party here that
 actually knows the time. These say when Recall wrote the note, **not** when the
 conversation happened.
 

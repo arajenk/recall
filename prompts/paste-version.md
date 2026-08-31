@@ -52,13 +52,29 @@ claims: if it came out of your own knowledge rather than out of the conversation
 `[claim]`, and the readable half has to say where it came from too ("I mentioned a study,
 which you haven't checked"). Never write one as a bare fact in either half.
 
-A number or a citation reads as authoritative months later, long after anyone remembers a
+This matters more than it looks. A number or a citation reads as authoritative months
+later, long after anyone remembers a
 chatbot volunteered it. If you are not certain of an author, year, or figure, say what the
 finding was and admit you are unsure of the source rather than producing a precise-looking
-citation that might be wrong.
+citation that might be wrong. A half-remembered reference recorded confidently is worse
+than no reference.
 
 For `[corrected]`, keep both halves: what was believed, and what replaced it, on one
-line. A future reader needs to know the wrong turn was already taken.
+line. A future reader needs to know the wrong turn was already taken, so they don't take it
+again.
+
+## Dates
+
+These notes get a saved date when they are filed. That is not the same as when the
+conversation happened, and you must not conflate the two.
+
+You cannot see message timestamps, and today's date tells you nothing about a conversation
+that started weeks ago. So give a `conversation_date` **only** when you have real
+evidence: I said when it was, or the conversation contains dated content. When you do, say
+how you know in a `conversation_date_basis` beside it.
+
+Otherwise leave it out. Unknown is a perfectly good answer; a guessed date is not, because
+it makes an old conversation read as current later on.
 
 ## Where the note goes
 
@@ -75,11 +91,13 @@ If folders are listed, use one that already fits, with its exact path. Nested pa
 Create a new folder only when nothing listed genuinely fits. When you do, name it for a
 **durable area of my life or work** that will hold many notes over time, not for the
 subject of this one conversation. If the folder you're about to create would only ever
-contain this single note, it's too specific: go one level broader.
+contain this single note, it's too specific: go one level broader. The early folders set
+the shape of everything filed later, so bias toward broad and few.
 
 **Top-level folders are areas, never projects.** A named project belongs *inside* the area
 it serves: `Work/Acme`, not `Acme`. Projects start, get renamed, and get abandoned;
-areas don't.
+areas don't. A folder tree whose top level fills up with project names stops being
+navigable after a dozen of them.
 
 Two areas that are easy to confuse, and shouldn't be:
 
@@ -95,6 +113,9 @@ you're about to create against each other before committing to them.
 
 Say at the end which folders you created, so I can catch a bad guess while there are still
 few enough to fix.
+
+If this conversation clearly belongs to a project that appears above under a different
+name than it had before, say so rather than filing a near-duplicate.
 
 ## One note, or several?
 
@@ -118,7 +139,30 @@ Two things reliably deserve their own note:
 Default to one note when subjects genuinely belong together. But burying an unrelated
 subject inside a note titled for something else is the worse mistake: it's filed where
 I'll never look for it, which is the same as losing it. Each note is titled for its own
-subject and stands on its own.
+subject and stands on its own. Never write notes that only make sense read together.
+
+## If this conversation was saved before
+
+The notes already in that folder, one path per line, so you can tell a subject that
+continues one of them from a genuinely new one:
+
+```
+none yet
+```
+
+Match what you write now against the notes above. A subject that already has a note
+**updates that note**; only genuinely new subjects get new ones. Never file a near-
+duplicate of a note that already exists. If a subject came up earlier in the conversation
+and hasn't been touched since, leave its note exactly as it is.
+
+When updating, produce the **updated whole note**, not an addition to it. Fold new
+information in where it belongs. Apply corrections rather than stacking them. Drop points
+that turned out to be dead ends, unless the dead end itself is worth remembering. The
+visible note is always the clean current picture.
+
+Without the server there is nothing to read the old note back for you, so paste in the
+note you are updating alongside its path. Say for each note you print whether it is new or
+an update.
 
 ## Every note is written twice
 
@@ -150,7 +194,8 @@ At most **400 words**. This is binding.
 
 **It has to stand on its own.** Assume I have the note and nothing else: not the
 conversation, not the detail file. Anything needed to make sense of it goes in, including
-the concrete stuff. Real numbers, real names, the actual thing that was said.
+the concrete stuff. Real numbers, real names, the actual thing that was said. Specifics
+are what make a note worth keeping six months later.
 
 #### How it should sound
 
@@ -172,15 +217,17 @@ Do not use these. These are the giveaways that a machine wrote it:
   of...", "...reflecting a broader shift...". Cut them. They say nothing.
 - "Not just X, it's Y" constructions, and clipped negations bolted onto the end of a
   sentence like "no guessing" or "no wasted effort".
-- Groups of three. Two reasons are usually the honest number.
+- Groups of three. Two reasons are usually the honest number; three is a rhythm the model
+  reaches for, not a fact about the world.
 - Dressed-up verbs where a plain one works. "Is" and "has" are good words. Not "serves
   as", "stands as", "represents".
 - A warm closing line that summarizes and reassures. End on the last real piece of
-  information and stop.
+  information and stop. No "the important thing is", no "that's not a failing on your
+  part", no send-off.
 - Announcing what you are about to do instead of doing it: "let's break this down".
 
 Vary the sentence lengths. Some short. Some longer where the thought actually needs the
-room.
+room. Even, mid-length cadence across every sentence is itself a tell.
 
 Above all, record what happened. Do not counsel, encourage, or soften. If something went
 badly, write that it went badly and move on.
@@ -207,9 +254,16 @@ technical and complete as the conversation supports.
 - [corrected] Believed X → actually Y
 ```
 
-Drop any section that would be empty. One idea per bullet, at most **12 bullets in any one
-section**. Add evidence, confidence, and any metadata worth keeping, this half exists so
-the readable one doesn't have to carry it.
+Drop any section that would be empty. Add evidence, confidence, and any metadata worth
+keeping, this half exists so the readable one doesn't have to carry it, and so a future
+tool can assemble a context pack from something rigorous.
+
+One idea per bullet, one line per bullet. If a bullet needs a semicolon, a dash, or the
+words "and also" to hold itself together, it is several bullets, or a sign the subject
+deserves its own note. At most **12 bullets in any one section**.
+
+Reading the note must be faster than rereading the conversation. That is the entire point
+of it; a note that fails this test has no reason to exist.
 
 ## Output
 

@@ -38,10 +38,19 @@ marked unverified. This is the whole reason the project exists.
 **A note is a pair, written atomically.** The readable half goes at `Work/X/Note.md`, the
 detail half at `_detail/Work/X/Note.md`. One call writes both or neither, they mirror each
 other's paths, and each names the other in frontmatter. Do not add a code path that can
-produce one alone, because a pair that can be written separately will drift apart.
+produce one alone, because a pair that can be written separately will drift apart. This
+holds for updates and for the archive too: both halves are archived, both are replaced,
+and a failure partway puts back what was there.
+
+**An update never destroys the version it replaces.** `updateNote` archives both halves
+before it writes either one. That archive is the only reason overwriting is allowed at
+all, so a code path that updates without archiving takes the safety net away rather than
+skipping a nicety.
 
 **The server stamps dates, not the model.** `saved` and `updated` come from the server,
-which is the only party that knows the time. `conversation_date` is recorded only with
+which is the only party that knows the time. On an update, `saved` is carried forward from
+the note being replaced and only `updated` moves, so an old note that gets revised does
+not start reading as though it were written today. `conversation_date` is recorded only with
 real evidence and a stated basis. MCP exposes no conversation metadata and the model
 cannot see message timestamps, so an unknown date stays unknown rather than quietly
 becoming today.
@@ -51,6 +60,13 @@ untrusted input. Anything resolving outside the vault is refused, not clamped.
 
 **One prompt, never forked.** ChatGPT support is planned. When it lands it reads the same
 `extraction-prompt.md`. Two copies means two different note formats in one vault.
+
+`paste-version.md` is the one sanctioned hand-filled copy, and it drifted anyway: it spent
+a whole phase missing the Dates section and several rules the canonical prompt had. Two
+tests in `prompt.test.ts` now hold them together, one on the `##` headings and one on a
+list of load-bearing phrases. It may differ in person ("the user" becomes "I") and in how
+it asks for output, since it has no tools to call. It may not lose a rule. Add a rule to
+the canonical prompt and you add it to both, or the suite fails, which is the point.
 
 **No em dashes anywhere**, including tool descriptions in `server.ts`. Those get sent to
 the model as context, so dashes there work against the instruction telling it not to use
@@ -62,8 +78,8 @@ them. Same for the prompt files.
 prompts/extraction-prompt.md   the product. Placeholders filled by the server
 prompts/paste-version.md       same prompt by hand, for testing without the server
 src/server.ts                  tools and the save-memory prompt
-src/vault.ts                   folder listing, path safety
-src/notes.ts                   writes the pair, frontmatter, title sanitizing
+src/vault.ts                   folder and note listing, path safety
+src/notes.ts                   writes, reads, updates and archives the pair
 src/prompt.ts                  fills the template, fails loudly on a missing value
 src/log.ts                     appends to <vault>/.recall/server.log
 ```
@@ -84,10 +100,19 @@ to pick up code changes.
 
 ## Where it is
 
-Phase 2. Create-only: saving the same conversation twice fails rather than updating,
-because overwriting without archiving would destroy a note.
+Phase 3. A conversation that continues a subject already in the vault updates that note
+instead of filing a near-duplicate. The `save-memory` prompt carries the full note
+inventory, so the model decides create or update on its own with no extra step for the
+user. `recall_read_note` returns both halves without their frontmatter, and
+`recall_update_note` replaces both, keeping the superseded version under
+`.recall/archive/<folder>/<title>/<timestamp>.md`.
 
-Phase 3 is next. Archive pairs under `.recall/archive/`, update in place, add `find_note`.
+`recall_save_note` stays create-only on purpose. A title collision is far more often two
+different subjects than one continued subject, and failing there sends the model to the
+update tool rather than quietly merging them.
+
+Nothing prunes the archive yet, so it grows without limit. Notes are small and the vault
+is one person's, so this is fine for a long while, but it is the next thing to bite.
 
 ## Gotchas
 
@@ -100,3 +125,8 @@ keeps its own log.
 
 The repo is public. Keep examples generic (`Work/Acme`, `Projects/Sidecar`) rather than
 using real project names.
+
+
+## Explaining your work
+
+After completing a meaningful implementation, briefly explain what you built in plain English. Focus on the mental model: what changed, how it works, and any important decisions or tradeoffs. Keep it concise, and do not give me a long walkthrough or dump implementation jargon unless I ask for more detail.
