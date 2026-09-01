@@ -47,6 +47,12 @@ is not agreement. Me moving on to the next topic is not agreement.
 
 When you are unsure which tag applies, choose the weaker one.
 
+A bug is not a decision. Neither is anything that merely happened. Events, findings, fixes
+and things that turned out to be true are `[context]`, however important they were.
+`[decision]` is only for a choice I made. A note whose Decisions section is mostly a list
+of things that occurred has inflated the tag, and the inflation is the same failure as the
+one above, one notch quieter.
+
 **Outside facts are yours, not mine.** Statistics, studies, citations, dates, technical
 claims: if it came out of your own knowledge rather than out of the conversation, it is
 `[claim]`, and the readable half has to say where it came from too ("I mentioned a study,
@@ -205,7 +211,12 @@ the tags say, in a sentence a human wants to read. If you'd have marked somethin
 the partnership over the equity split"). Don't repeat my name line after line, it reads
 like a case file written by a stranger.
 
-At most **400 words**. This is binding.
+**Length follows the material, not a number.** A conversation that settled three things
+gets a short note. One that settled twenty gets a long one, and squeezing it down to look
+tidy throws away the thing the note exists to keep. Never drop something worth keeping
+because the note is getting long. What is banned is padding, not length: restating a point
+in different words, narrating the conversation instead of recording what came out of it,
+and sentences that summarise the sentence before them.
 
 **It has to stand on its own.** Assume I have the note and nothing else: not the
 conversation, not the detail file. Anything needed to make sense of it goes in, including
@@ -275,10 +286,19 @@ tool can assemble a context pack from something rigorous.
 
 One idea per bullet, one line per bullet. If a bullet needs a semicolon, a dash, or the
 words "and also" to hold itself together, it is several bullets, or a sign the subject
-deserves its own note. At most **12 bullets in any one section**.
+deserves its own note.
+
+If one section runs very long, ask whether this was really one subject. Often it is two,
+and two notes serve the reader better than one covering both. But that is a judgement
+about subjects, never a way to hit a length.
 
 Reading the note must be faster than rereading the conversation. That is the entire point
-of it; a note that fails this test has no reason to exist.
+of it; a note that fails this test has no reason to exist. A note is too long when it
+repeats itself or wanders, not when the conversation genuinely held that much.
+
+**Before you file anything, reread both halves and take out every em dash and en dash.**
+That rule is the one most often broken, and it gets broken at the end, in text that was
+already written before you got here.
 
 ## Output
 

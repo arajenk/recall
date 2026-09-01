@@ -91,14 +91,14 @@ test('the paste version keeps every rule the canonical prompt depends on', async
     'never record something you generated as something',
     'Enthusiasm is not agreement',
     'choose the weaker one',
-    '400 words',
-    '12 bullets in any one section',
     'conversation_date',
     'real evidence',
     'durable area of',
     'sibling top-level folders that mean the same thing',
     'updates that note',
     'cannot see the conversation that put it there',
+    'A bug is not a decision',
+    'Length follows the material',
   ];
 
   for (const rule of rules) {

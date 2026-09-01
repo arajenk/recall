@@ -54,8 +54,9 @@ Every save writes **two linked files**:
 ~/Recall/_detail/Work/Acme/Contract Renewal.md  ← tags, evidence, confidence
 ```
 
-The readable note is prose written to you, under 400 words, meant to be read start to
-finish. The detail counterpart carries the machine-facing precision, `[decision]`,
+The readable note is prose written to you, meant to be read start to finish. It runs as
+long as the conversation actually warrants: a thin conversation gets a short note, a dense
+one gets a long note, and nothing worth keeping gets cut to hit a length. The detail counterpart carries the machine-facing precision, `[decision]`,
 `[agreed]`, `[suggested]`, `[assumption]`, `[corrected]`, plus evidence and confidence , 
 so the readable half never has to look like a log.
 

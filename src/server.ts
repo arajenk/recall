@@ -61,7 +61,8 @@ export function createServer(): McpServer {
           .string()
           .describe(
             'The READABLE note: prose the user reads start to finish, written to them as ' +
-              '"you", no bracket tags, under 400 words. Starts with its "# " heading.',
+              '"you", no bracket tags, as long as the material needs and no longer. ' +
+              'Starts with its "# " heading.',
           ),
         detail: z
           .string()
