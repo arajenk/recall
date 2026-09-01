@@ -48,9 +48,14 @@ test('sends a save that starts at a write tool back to the instructions first', 
 test('describes the save tool in the words a user would actually say', async () => {
   const client = await connect();
   const tools = (await client.listTools()).tools;
-
   const description = tools.find((tool) => tool.name === 'recall_save_conversation')?.description ?? '';
-  for (const phrasing of ['save this', 'remember this']) {
+
+  /**
+   * "remember this" is deliberately absent. Tested against the real client, that
+   * phrasing goes to its own built-in memory whatever this description says, and
+   * claiming it here only teaches the model a rule it cannot keep.
+   */
+  for (const phrasing of ['save this to recall', 'save this', 'save it']) {
     assert.match(description, new RegExp(phrasing, 'i'));
   }
 });
@@ -70,4 +75,18 @@ test('separates Recall from the built in memory the client already has', async (
       `${tool.name} does not distinguish itself from the client's own memory`,
     );
   }
+});
+
+test('treats a bare save request as being about the conversation itself', async () => {
+  const client = await connect();
+  const tools = (await client.listTools()).tools;
+  const description = tools.find((t) => t.name === 'recall_save_conversation')?.description ?? '';
+
+  /**
+   * Observed: "save this to recall" fires, "save this" makes the model ask what
+   * to save. The object is always the conversation, so the description has to
+   * say so rather than leaving the model to infer it from examples.
+   */
+  assert.match(description, /do not ask what they mean/i);
+  assert.match(description, /the conversation itself/i);
 });

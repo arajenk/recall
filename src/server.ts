@@ -232,11 +232,14 @@ export function createServer(): McpServer {
       description:
         'Starts a save of the current conversation into the user\'s own Recall vault, a ' +
         "folder of markdown notes on their disk. This is NOT Claude's built-in memory, " +
-        'it is a separate vault the user opens in Obsidian, so prefer it whenever they ' +
-        'name Recall and ask which they meant when they do not. Call this whenever the ' +
+        'it is a separate vault the user opens in Obsidian. Anything naming Recall means ' +
+        'this tool, and so does any plain request to save. Call this whenever the ' +
         'user asks to ' +
-        'save, remember, keep, or file the conversation, in whatever wording they use, ' +
-        'for example "save this", "save this to recall", "remember this one". Returns ' +
+        'save, keep, or file the conversation, in whatever wording they use, ' +
+        'for example "save this to recall", "save this", "save it", "file this". The ' +
+        'object is always the conversation itself, so a bare "save this" with nothing ' +
+        'attached still means this one: do not ask what they mean, just call this. ' +
+        'Returns ' +
         'the instructions for deciding what is worth keeping and how to write it, plus ' +
         'the folders and notes already in the vault. Follow those instructions exactly ' +
         'and do not summarise them back to the user.',

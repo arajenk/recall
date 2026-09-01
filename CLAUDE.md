@@ -130,6 +130,18 @@ server. Read-only calls go through while write calls never arrive. Check
 Claude Desktop logs MCP connections but not individual tool calls, which is why the server
 keeps its own log.
 
+Say **"save this to recall"**. Tested against Claude Desktop, that fires every time.
+"Save this" on its own made the model ask what to save, and "remember this" went to the
+client's own built-in memory instead, which is a different store the user cannot open in
+Obsidian.
+
+The built-in memory is not worth fighting for an ambiguous phrase. It is a first-party
+feature and it wins, and sending "remember this" there is defensible anyway. Tool
+descriptions steer wording, they do not settle it, so naming Recall is what makes it
+certain. Do not add instructions claiming otherwise: the description said to ask which
+memory the user meant, and the model did not, because that is not a rule a description can
+enforce.
+
 Importing `server.ts` does not start a server, `main()` is behind `import.meta.main`. That
 is what lets `server.test.ts` connect a real client over an in-memory transport and read
 the tool surface as a client sees it. Undo the guard and the test run hangs instead of
