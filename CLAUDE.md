@@ -136,8 +136,23 @@ user. `recall_read_note` returns both halves without their frontmatter, and
 different subjects than one continued subject, and failing there sends the model to the
 update tool rather than quietly merging them.
 
+A save starts either by asking in the chat, which calls `recall_save_conversation`, or
+from `save-memory` in the menu. Both build through `buildSaveMemoryPrompt`.
+
+**The update path has never run against the real vault.** As of the end of this session
+every note in `~/Recall` is a create, the archive is empty, and `recall_update_note` has
+zero calls in the log. Updating, the archive, the rule about not cutting another
+conversation's material, and the retention floor are all verified in tests and against a
+scratch server, and none of them have been exercised in Claude Desktop. Two conversations
+about one subject, saved in turn, is the thing that closes this. Do that before trusting
+any of it, and before building anything else on top.
+
 Nothing prunes the archive yet, so it grows without limit. Notes are small and the vault
 is one person's, so this is fine for a long while, but it is the next thing to bite.
+
+Known and not worth fixing yet: "remember this" reaches the client's own memory rather
+than Recall, and the retention floor is a floor, so an update that adds a lot while
+cutting one specific thing passes it.
 
 ## Gotchas
 
