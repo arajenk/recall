@@ -112,3 +112,8 @@ test('asks for a terse report and ends the save there', async () => {
   assert.match(prompt, /no reasoning/i);
   assert.match(prompt, /do not offer to save/i);
 });
+
+test('has a one line answer for a conversation with nothing worth keeping', async () => {
+  assert.match(OUTPUT_INSTRUCTION, /nothing worth saving/i);
+  assert.match(OUTPUT_INSTRUCTION, /without listing what you passed over/i);
+});

@@ -36,6 +36,10 @@ export const OUTPUT_INSTRUCTION =
   'No reasoning about where things went, no justification for a folder name, no advice ' +
   'about what to check, no questions, no closing remark. If a call failed, say what ' +
   'failed in one line instead of the path.\n\n' +
+  'If nothing in the conversation is worth keeping, the whole report is the single line ' +
+  '`Nothing worth saving.` Say it without listing what you passed over and without ' +
+  'explaining why, since deciding a conversation was not worth filing is the ordinary ' +
+  'outcome and does not need defending.\n\n' +
   'That completes the save. Carry on with the conversation exactly as you normally ' +
   'would. The only thing that carries over is that the save is finished, so do not offer ' +
   'to save anything else and do not ask what is worth keeping unless the user raises it.';

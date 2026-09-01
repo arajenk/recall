@@ -273,6 +273,10 @@ no reasoning about where things went, no justification for a folder name, no adv
 what to check, no questions, no closing remark. Just the paths and the notes, as text in
 this reply.
 
+If nothing here is worth keeping, the whole reply is the single line `Nothing worth
+saving.` Say it without listing what you passed over and without explaining why. Deciding
+a conversation wasn't worth filing is the ordinary outcome and doesn't need defending.
+
 That completes it. Carry on with the conversation exactly as you normally would. The only
 thing that carries over is that the save is finished, so don't offer to save anything else
 and don't ask what's worth keeping unless I raise it.
