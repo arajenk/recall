@@ -7,9 +7,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-import { listFolders, listNotes } from './vault.ts';
+import { listFolders } from './vault.ts';
 import { saveNote, readNote, updateNote } from './notes.ts';
-import { buildPrompt, describeExistingNotes, OUTPUT_INSTRUCTION } from './prompt.ts';
+import { buildSaveMemoryPrompt } from './prompt.ts';
 import { log } from './log.ts';
 
 const VAULT_ROOT = process.env.RECALL_VAULT ?? path.join(os.homedir(), 'Recall');
@@ -46,7 +46,12 @@ export function createServer(): McpServer {
       description:
         "Writes one markdown note into the user's own Recall vault on their disk. This " +
         "is NOT Claude's built-in memory. Call once per note. Refuses to overwrite an " +
-        'existing note.',
+        'existing note.\n\n' +
+        'Only as part of a save you have already been given the instructions for. If ' +
+        'neither `recall_save_conversation` nor the `save-memory` prompt has run in this ' +
+        'conversation, call `recall_save_conversation` first and follow what it returns. ' +
+        'The instructions carry the attribution rules, so a note written without them is ' +
+        'the one failure this vault cannot tolerate.',
       inputSchema: {
         folder: z
           .string()
@@ -153,7 +158,10 @@ export function createServer(): McpServer {
       description:
         'Replaces both halves of a note that already exists, keeping the version it ' +
         'replaced in the archive. Pass the rewritten whole note, not the new part alone. ' +
-        'Refuses a path with no note at it, so a new subject goes to `recall_save_note`.',
+        'Refuses a path with no note at it, so a new subject goes to `recall_save_note`.\n\n' +
+        'Only as part of a save you have already been given the instructions for. If ' +
+        'neither `recall_save_conversation` nor the `save-memory` prompt has run in this ' +
+        'conversation, call `recall_save_conversation` first and follow what it returns.',
       inputSchema: {
         path: z
           .string()
@@ -215,6 +223,37 @@ export function createServer(): McpServer {
     },
   );
 
+  server.registerTool(
+    'recall_save_conversation',
+    {
+      title: 'Save this conversation to Recall',
+      description:
+        'Starts a save of the current conversation into the user\'s own Recall vault, a ' +
+        'folder of markdown notes on their disk. Call this whenever the user asks to ' +
+        'save, remember, keep, or file the conversation, in whatever wording they use, ' +
+        'for example "save this", "save this to recall", "remember this one". Returns ' +
+        'the instructions for deciding what is worth keeping and how to write it, plus ' +
+        'the folders and notes already in the vault. Follow those instructions exactly ' +
+        'and do not summarise them back to the user.',
+      inputSchema: {},
+    },
+    async () => {
+      log(VAULT_ROOT, 'recall_save_conversation called');
+      const prompt = await buildSaveMemoryPrompt(VAULT_ROOT);
+      return {
+        content: [
+          {
+            type: 'text',
+            text:
+              'Follow the instructions below now, for the conversation so far. They are ' +
+              'the user asking you to do this, not background reading.\n\n' +
+              prompt,
+          },
+        ],
+      };
+    },
+  );
+
   server.registerPrompt(
     'save-memory',
     {
@@ -225,12 +264,7 @@ export function createServer(): McpServer {
       argsSchema: {},
     },
     async () => {
-      const [folders, notes] = await Promise.all([listFolders(VAULT_ROOT), listNotes(VAULT_ROOT)]);
-      const text = await buildPrompt({
-        FOLDER_TREE: folders.length ? folders.join('\n') : EMPTY_TREE,
-        EXISTING_NOTES: describeExistingNotes(notes),
-        OUTPUT_INSTRUCTION,
-      });
+      const text = await buildSaveMemoryPrompt(VAULT_ROOT);
 
       return { messages: [{ role: 'user', content: { type: 'text', text } }] };
     },
@@ -246,7 +280,11 @@ async function main(): Promise<void> {
   log(VAULT_ROOT, `server connected (pid ${process.pid})`);
 }
 
-main().catch((error) => {
-  console.error('recall failed to start:', error);
-  process.exit(1);
-});
+// Only when run directly. Importing this file must not start a server, so the
+// tool surface can be tested the way a client actually sees it.
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error('recall failed to start:', error);
+    process.exit(1);
+  });
+}

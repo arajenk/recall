@@ -61,6 +61,12 @@ untrusted input. Anything resolving outside the vault is refused, not clamped.
 **One prompt, never forked.** ChatGPT support is planned. When it lands it reads the same
 `extraction-prompt.md`. Two copies means two different note formats in one vault.
 
+There are two ways to start a save, the `save-memory` prompt in the menu and the
+`recall_save_conversation` tool, and both go through `buildSaveMemoryPrompt`. Neither
+assembles its own. A save that reaches a write tool without those instructions writes a
+note with no attribution rules applied, which is why both write tools tell the model to
+go back and start properly.
+
 `paste-version.md` is the one sanctioned hand-filled copy, and it drifted anyway: it spent
 a whole phase missing the Dates section and several rules the canonical prompt had. Two
 tests in `prompt.test.ts` now hold them together, one on the `##` headings and one on a
@@ -81,6 +87,7 @@ src/server.ts                  tools and the save-memory prompt
 src/vault.ts                   folder and note listing, path safety
 src/notes.ts                   writes, reads, updates and archives the pair
 src/prompt.ts                  fills the template, owns the output contract
+src/server.test.ts             the tool surface, over an in-memory transport
 src/log.ts                     appends to <vault>/.recall/server.log
 ```
 
@@ -122,6 +129,11 @@ server. Read-only calls go through while write calls never arrive. Check
 
 Claude Desktop logs MCP connections but not individual tool calls, which is why the server
 keeps its own log.
+
+Importing `server.ts` does not start a server, `main()` is behind `import.meta.main`. That
+is what lets `server.test.ts` connect a real client over an in-memory transport and read
+the tool surface as a client sees it. Undo the guard and the test run hangs instead of
+failing, which is a slow thing to work out from scratch.
 
 The repo is public. Keep examples generic (`Work/Acme`, `Projects/Sidecar`) rather than
 using real project names.

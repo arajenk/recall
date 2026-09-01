@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { listFolders, listNotes } from './vault.ts';
+
 const PROMPT_FILE = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -89,4 +91,24 @@ export function describeExistingNotes(notes: string[]): string {
     'with its path to read both halves, so you fold new material into what is actually ' +
     'there rather than writing over it from memory.'
   );
+}
+
+const EMPTY_TREE = '(none yet, the vault is empty)';
+
+/**
+ * The save prompt, filled against the vault as it stands right now.
+ *
+ * Both ways in go through here: the `save-memory` prompt in the menu and the
+ * tool the model calls when the user just asks in the chat. They must produce
+ * the same instructions, or the vault ends up with two note formats depending
+ * on which one the user happened to reach for.
+ */
+export async function buildSaveMemoryPrompt(vaultRoot: string): Promise<string> {
+  const [folders, notes] = await Promise.all([listFolders(vaultRoot), listNotes(vaultRoot)]);
+
+  return buildPrompt({
+    FOLDER_TREE: folders.length ? folders.join('\n') : EMPTY_TREE,
+    EXISTING_NOTES: describeExistingNotes(notes),
+    OUTPUT_INSTRUCTION,
+  });
 }

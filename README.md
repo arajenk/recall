@@ -20,14 +20,20 @@ you're already in, so there's no second model, no API key, and no extra cost.
 ## Setup
 
 Already registered in `~/Library/Application Support/Claude/claude_desktop_config.json`.
-**Restart Claude Desktop**, then find `save-memory` in the prompt picker (the `+` menu in
-the composer, under `recall`).
+**Restart Claude Desktop.** After that there are two ways to save, and they run the same
+instructions:
+
+- **Just ask.** "Save this to Recall", "remember this one", whatever wording. The model
+  calls a tool that hands it the instructions.
+- **The `+` menu**, under `recall`, then `save-memory`. Slower to reach, but it fires
+  every time rather than depending on the model reading your phrasing correctly.
 
 Vault defaults to `~/Recall`; override with the `RECALL_VAULT` env var.
 
 ## Using it
 
-Have a real conversation, then run the `save-memory` prompt. The model will:
+Have a real conversation, then ask it to save, or run the `save-memory` prompt. The model
+will:
 
 1. split the conversation by subject, different destination folder means a different note
 2. match those subjects against the notes already in your vault

@@ -2,8 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 
-import { buildPrompt, describeExistingNotes, OUTPUT_INSTRUCTION } from './prompt.ts';
+import {
+  buildPrompt,
+  describeExistingNotes,
+  buildSaveMemoryPrompt,
+  OUTPUT_INSTRUCTION,
+} from './prompt.ts';
 
 const values = {
   FOLDER_TREE: 'Work/Acme\nContent',
@@ -116,4 +122,27 @@ test('asks for a terse report and ends the save there', async () => {
 test('has a one line answer for a conversation with nothing worth keeping', async () => {
   assert.match(OUTPUT_INSTRUCTION, /nothing worth saving/i);
   assert.match(OUTPUT_INSTRUCTION, /without listing what you passed over/i);
+});
+
+test('assembles the save prompt against a real vault, leaving no placeholder unfilled', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'recall-prompt-'));
+  await fs.mkdir(path.join(root, 'Work/Acme'), { recursive: true });
+  await fs.writeFile(path.join(root, 'Work/Acme/Renewal.md'), 'x');
+
+  const prompt = await buildSaveMemoryPrompt(root);
+
+  assert.match(prompt, /Work\/Acme/);
+  assert.match(prompt, /Work\/Acme\/Renewal\.md/);
+  assert.match(prompt, /\(created\)/);
+  assert.doesNotMatch(prompt, /\{\{[A-Z_]+\}\}/);
+});
+
+test('describes an empty vault as empty in both the tree and the inventory', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'recall-prompt-'));
+
+  const prompt = await buildSaveMemoryPrompt(root);
+
+  assert.match(prompt, /the vault is empty/i);
+  assert.match(prompt, /No notes saved yet/i);
+  assert.doesNotMatch(prompt, /\{\{[A-Z_]+\}\}/);
 });
