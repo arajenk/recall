@@ -80,7 +80,7 @@ prompts/paste-version.md       same prompt by hand, for testing without the serv
 src/server.ts                  tools and the save-memory prompt
 src/vault.ts                   folder and note listing, path safety
 src/notes.ts                   writes, reads, updates and archives the pair
-src/prompt.ts                  fills the template, fails loudly on a missing value
+src/prompt.ts                  fills the template, owns the output contract
 src/log.ts                     appends to <vault>/.recall/server.log
 ```
 

@@ -9,20 +9,12 @@ import { z } from 'zod';
 
 import { listFolders, listNotes } from './vault.ts';
 import { saveNote, readNote, updateNote } from './notes.ts';
-import { buildPrompt, describeExistingNotes } from './prompt.ts';
+import { buildPrompt, describeExistingNotes, OUTPUT_INSTRUCTION } from './prompt.ts';
 import { log } from './log.ts';
 
 const VAULT_ROOT = process.env.RECALL_VAULT ?? path.join(os.homedir(), 'Recall');
 
 const EMPTY_TREE = '(none yet, the vault is empty)';
-
-const OUTPUT_INSTRUCTION =
-  'For a new subject, call `recall_save_note`. For a subject that already has a note, ' +
-  'call `recall_read_note` for its current text and then `recall_update_note` with the ' +
-  'rewritten whole. Either way pass both halves (`content` and `detail`) in the same ' +
-  'call, one call per note. Do not print the notes into the chat. The tools are what ' +
-  'file them. Afterwards, reply with one short line per note saying where it was filed ' +
-  'and whether it was created or updated, and flag any folder you created.';
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: 'recall', version: '0.1.0' });

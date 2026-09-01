@@ -268,6 +268,11 @@ of it; a note that fails this test has no reason to exist.
 ## Output
 
 For each note: print its target folder path on its own line, then both halves in fenced
-markdown blocks, the readable one first, the detail one after. Nothing else, no
-preamble, no offer to save it, no questions. Just the paths and the notes, as text in
+markdown blocks, the readable one first, the detail one after. Nothing else, no preamble,
+no reasoning about where things went, no justification for a folder name, no advice about
+what to check, no questions, no closing remark. Just the paths and the notes, as text in
 this reply.
+
+That completes it. Carry on with the conversation exactly as you normally would. The only
+thing that carries over is that the save is finished, so don't offer to save anything else
+and don't ask what's worth keeping unless I raise it.

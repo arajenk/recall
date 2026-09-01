@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { buildPrompt, describeExistingNotes } from './prompt.ts';
+import { buildPrompt, describeExistingNotes, OUTPUT_INSTRUCTION } from './prompt.ts';
 
 const values = {
   FOLDER_TREE: 'Work/Acme\nContent',
@@ -98,4 +98,17 @@ test('the paste version keeps every rule the canonical prompt depends on', async
     assert.ok(canonical.includes(rule), `canonical prompt no longer contains "${rule}"`);
     assert.ok(paste.includes(rule), `paste version has drifted, it is missing "${rule}"`);
   }
+});
+
+test('asks for a terse report and ends the save there', async () => {
+  const prompt = await buildPrompt({
+    FOLDER_TREE: 'Work',
+    EXISTING_NOTES: 'No notes saved yet.',
+    OUTPUT_INSTRUCTION,
+  });
+
+  assert.match(prompt, /\(created\)/);
+  assert.match(prompt, /\(updated\)/);
+  assert.match(prompt, /no reasoning/i);
+  assert.match(prompt, /do not offer to save/i);
 });

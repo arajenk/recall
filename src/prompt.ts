@@ -9,6 +9,37 @@ const PROMPT_FILE = path.join(
   'extraction-prompt.md',
 );
 
+/**
+ * How the model reports back once the notes are filed.
+ *
+ * Deliberately strict about length. Left looser, it explains where it filed
+ * things and why, then keeps offering to save whatever comes up next, and the
+ * conversation ends up being about Recall rather than about whatever the user
+ * was actually doing. Em dashes are fine here: this is chat, not a note.
+ *
+ * It closes by handing the conversation back. This prompt governs the save and
+ * nothing else, so it says so plainly rather than leaving a standing rule that
+ * quietly shapes how the model behaves for the rest of the thread.
+ */
+export const OUTPUT_INSTRUCTION =
+  'For a new subject, call `recall_save_note`. For a subject that already has a note, ' +
+  'call `recall_read_note` for its current text and then `recall_update_note` with the ' +
+  'rewritten whole. Either way pass both halves (`content` and `detail`) in the same ' +
+  'call, one call per note. Do not print the notes into the chat, the tools are what ' +
+  'file them.\n\n' +
+  'Then report exactly this and nothing else:\n\n' +
+  'Saved:\n' +
+  '<path> (created)\n' +
+  '<path> (updated)\n\n' +
+  'Then, only if you made a folder that did not exist, one line per folder:\n\n' +
+  'New folder: <path>\n\n' +
+  'No reasoning about where things went, no justification for a folder name, no advice ' +
+  'about what to check, no questions, no closing remark. If a call failed, say what ' +
+  'failed in one line instead of the path.\n\n' +
+  'That completes the save. Carry on with the conversation exactly as you normally ' +
+  'would. The only thing that carries over is that the save is finished, so do not offer ' +
+  'to save anything else and do not ask what is worth keeping unless the user raises it.';
+
 export interface PromptValues {
   FOLDER_TREE: string;
   EXISTING_NOTES: string;
