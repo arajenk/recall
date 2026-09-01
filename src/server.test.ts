@@ -54,3 +54,20 @@ test('describes the save tool in the words a user would actually say', async () 
     assert.match(description, new RegExp(phrasing, 'i'));
   }
 });
+
+test('separates Recall from the built in memory the client already has', async () => {
+  const client = await connect();
+  const tools = (await client.listTools()).tools;
+
+  /**
+   * "Remember this" is a fair way to ask for either one. Every tool has to say
+   * which it is, or the save quietly lands somewhere the user cannot open.
+   */
+  for (const tool of tools) {
+    assert.match(
+      tool.description ?? '',
+      /NOT Claude's built-in memory/,
+      `${tool.name} does not distinguish itself from the client's own memory`,
+    );
+  }
+});

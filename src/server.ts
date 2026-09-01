@@ -122,9 +122,10 @@ export function createServer(): McpServer {
     {
       title: 'Read a note from the Recall vault',
       description:
-        'Returns both halves of a note that is already in the vault, without their ' +
-        'frontmatter. Call this before updating a note, so the rewrite folds into what ' +
-        'is really there instead of what you remember writing.',
+        "Returns both halves of a note in the user's own Recall vault, without their " +
+        "frontmatter. This is NOT Claude's built-in memory. Call this before updating a " +
+        'note, so the rewrite folds into what is really there instead of what you ' +
+        'remember writing.',
       inputSchema: {
         path: z
           .string()
@@ -156,9 +157,10 @@ export function createServer(): McpServer {
     {
       title: 'Update a note in the Recall vault',
       description:
-        'Replaces both halves of a note that already exists, keeping the version it ' +
-        'replaced in the archive. Pass the rewritten whole note, not the new part alone. ' +
-        'Refuses a path with no note at it, so a new subject goes to `recall_save_note`.\n\n' +
+        "Replaces both halves of a note in the user's own Recall vault, keeping the " +
+        "version it replaced in the archive. This is NOT Claude's built-in memory. Pass " +
+        'the rewritten whole note, not the new part alone. Refuses a path with no note ' +
+        'at it, so a new subject goes to `recall_save_note`.\n\n' +
         'Only as part of a save you have already been given the instructions for. If ' +
         'neither `recall_save_conversation` nor the `save-memory` prompt has run in this ' +
         'conversation, call `recall_save_conversation` first and follow what it returns.',
@@ -229,7 +231,10 @@ export function createServer(): McpServer {
       title: 'Save this conversation to Recall',
       description:
         'Starts a save of the current conversation into the user\'s own Recall vault, a ' +
-        'folder of markdown notes on their disk. Call this whenever the user asks to ' +
+        "folder of markdown notes on their disk. This is NOT Claude's built-in memory, " +
+        'it is a separate vault the user opens in Obsidian, so prefer it whenever they ' +
+        'name Recall and ask which they meant when they do not. Call this whenever the ' +
+        'user asks to ' +
         'save, remember, keep, or file the conversation, in whatever wording they use, ' +
         'for example "save this", "save this to recall", "remember this one". Returns ' +
         'the instructions for deciding what is worth keeping and how to write it, plus ' +
