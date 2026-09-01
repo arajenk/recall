@@ -42,6 +42,14 @@ produce one alone, because a pair that can be written separately will drift apar
 holds for updates and for the archive too: both halves are archived, both are replaced,
 and a failure partway puts back what was there.
 
+**A rewrite may not cut what another conversation put there.** An update sees the note
+plus one conversation, never the conversations that filled it. So material already in a
+note can be added to and corrected, but not dropped for seeming irrelevant, because the
+model judging that has not read the thread that put it there. Only material the current
+conversation established may be dropped as a dead end. The archive makes a bad rewrite
+recoverable, not harmless: nobody reads the archive, so a note that loses something has
+lost it in practice.
+
 **An update never destroys the version it replaces.** `updateNote` archives both halves
 before it writes either one. That archive is the only reason overwriting is allowed at
 all, so a code path that updates without archiving takes the safety net away rather than

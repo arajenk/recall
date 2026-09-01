@@ -149,10 +149,24 @@ duplicate of a note that already exists. If a subject came up earlier in the con
 and hasn't been touched since, leave its note exactly as it is.
 
 When updating, produce the **updated whole note**, not an addition to it. Fold new
-information in where it belongs. Apply corrections rather than stacking them. Drop points
-that turned out to be dead ends, unless the dead end itself is worth remembering. The
-visible note is always the clean current picture. Its history is preserved separately,
-so you don't need to carry old material forward for safekeeping.
+information in where it belongs, and apply corrections rather than stacking them.
+
+**What you may remove depends on where it came from.** A note you are updating usually
+holds material from conversations you were not part of. Treat that as evidence rather than
+as a draft:
+
+- Add to it freely.
+- Correct it where this conversation establishes it was wrong, marking the correction
+  rather than quietly deleting the version that was there.
+- Do **not** cut it for being irrelevant, redundant, or not worth the space. You cannot
+  see the conversation that put it there, so you are not the one who can judge that.
+
+Material this conversation put there itself is different. You watched it happen, so you
+may drop a dead end that went nowhere, unless the dead end is worth remembering.
+
+The visible note is always the clean current picture. Superseded versions are archived,
+but that is a safety net and not a filing system: the reader opens the note, never the
+archive, so the note has to stay complete on its own.
 
 ## Every note is written twice
 

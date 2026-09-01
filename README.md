@@ -64,7 +64,10 @@ paths, and each points at the other in frontmatter. There is no code path that p
 one alone.
 
 An update rewrites the whole note rather than appending to it, so what you read is always
-the current picture rather than a changelog. The version it replaced goes to
+the current picture rather than a changelog. A conversation updating a note it didn't
+write can add to it and correct it, but can't cut what's already there for seeming
+irrelevant, since it can't see the conversation that put it there. Only the conversation
+that established something gets to retire it. The version it replaced goes to
 `~/Recall/.recall/archive/`, both halves, one timestamped file per version. Nothing is
 overwritten without a copy being kept first, which is the only reason updating in place is
 allowed at all. The archive lives in a dot-folder, so Obsidian and the model both ignore

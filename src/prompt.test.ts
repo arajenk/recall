@@ -98,6 +98,7 @@ test('the paste version keeps every rule the canonical prompt depends on', async
     'durable area of',
     'sibling top-level folders that mean the same thing',
     'updates that note',
+    'cannot see the conversation that put it there',
   ];
 
   for (const rule of rules) {
