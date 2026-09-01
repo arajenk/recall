@@ -50,6 +50,16 @@ conversation established may be dropped as a dead end. The archive makes a bad r
 recoverable, not harmless: nobody reads the archive, so a note that loses something has
 lost it in practice.
 
+`RETENTION_FLOOR` in `notes.ts` backs this with a check rather than leaving it to the
+prompt. An update that keeps under 70% of either half is refused unless it passes
+`dropping` saying what is going and why, which gets logged. The server cannot tell which
+conversation is calling, so it cannot simply refuse, since trimming a dead end you raised
+yourself is legitimate. Requiring a stated reason is the same move as `conversation_date`
+requiring a basis: the questionable thing stays possible but stops being silent.
+
+It is a floor, not a guarantee. An update that adds a lot while cutting one specific thing
+nets out above it and passes.
+
 **An update never destroys the version it replaces.** `updateNote` archives both halves
 before it writes either one. That archive is the only reason overwriting is allowed at
 all, so a code path that updates without archiving takes the safety net away rather than

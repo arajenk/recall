@@ -241,6 +241,11 @@ export async function saveNote(
 export interface NoteUpdate extends NoteBodies {
   /** Vault-relative path of the readable half, as `readNote` was given it. */
   path: string;
+  /**
+   * Why this update is allowed to remove material that was already in the note.
+   * Required only when it removes a lot of it. See `RETENTION_FLOOR`.
+   */
+  dropping?: string;
   /** Supplied only to correct or newly establish it; otherwise carried forward. */
   conversationDate?: string;
   conversationDateBasis?: string;
@@ -249,6 +254,21 @@ export interface NoteUpdate extends NoteBodies {
 export interface UpdatedPair extends SavedPair {
   archived: SavedPair;
 }
+
+/**
+ * How much of a half an update may remove before it has to say why.
+ *
+ * An update sees the note plus one conversation, never the conversations that
+ * filled it, so removing a lot of it is usually a mistake rather than an edit.
+ * The server cannot tell which conversation is calling, so it cannot simply
+ * refuse: trimming a dead end you raised yourself is legitimate. Instead the
+ * loss has to be stated, which turns a silent deletion into a deliberate one
+ * that lands in the log.
+ *
+ * This is a floor, not a guarantee. An update that adds a lot while cutting
+ * something specific can still net out above it.
+ */
+const RETENTION_FLOOR = 0.7;
 
 /**
  * Where a superseded version of a pair goes: a folder per note, holding one
@@ -321,6 +341,29 @@ export async function updateNote(
     note: frontmatter(stamps, dated, { key: 'detail', path: relative.detail }) + update.content,
     detail: frontmatter(stamps, dated, { key: 'note', path: relative.note }) + update.detail,
   };
+
+  if (!update.dropping?.trim()) {
+    const before = {
+      note: splitFrontmatter(originals.note).body,
+      detail: splitFrontmatter(originals.detail).body,
+    };
+    const after = { note: update.content, detail: update.detail };
+    const label = { note: 'readable', detail: 'detail' };
+
+    for (const side of ['note', 'detail'] as const) {
+      if (!before[side].length) continue;
+      const kept = after[side].length / before[side].length;
+      if (kept >= RETENTION_FLOOR) continue;
+
+      throw new Error(
+        `This update would drop ${Math.round((1 - kept) * 100)}% of the ${label[side]} ` +
+          `half of "${relative.note}". Most of what is in a note came from conversations ` +
+          `you cannot see, so it is not yours to cut for seeming irrelevant. Fold your ` +
+          `new material into what is already there and keep the rest. If the material ` +
+          `really is finished with, pass \`dropping\` to say why, and be specific.`,
+      );
+    }
+  }
 
   const archived = archivePathsFor(update.path, now);
   for (const side of ['note', 'detail'] as const) {

@@ -11,6 +11,15 @@ async function emptyVault(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), 'recall-notes-'));
 }
 
+async function exists(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test('writes a note into a folder that does not exist yet', async () => {
   const root = await emptyVault();
 
@@ -245,7 +254,11 @@ test('keeps the date the note was first saved and moves only the updated date', 
 
   await updateNote(
     root,
-    { path: 'Work/Renewal.md', content: '# Renewal\n\nRewritten.\n', detail: '# d\n' },
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nThe original readable half, and a rewritten ending.\n',
+      detail: '# Renewal\n\n- [decision] the original detail, still here\n',
+    },
     { now: UPDATED_AT },
   );
 
@@ -260,7 +273,11 @@ test('archives the text of both halves as they were before the update', async ()
 
   const written = await updateNote(
     root,
-    { path: 'Work/Renewal.md', content: '# Renewal\n\nRewritten.\n', detail: '# new detail\n' },
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nThe original readable half, now with more. Rewritten.\n',
+      detail: '# Renewal\n\n- [decision] the original detail, plus a new bullet\n',
+    },
     { now: UPDATED_AT },
   );
 
@@ -279,12 +296,20 @@ test('keeps every earlier version rather than replacing the last archive entry',
   await savedPair(root);
   const first = await updateNote(
     root,
-    { path: 'Work/Renewal.md', content: 'second', detail: 'second' },
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nThe original readable half, second pass.\n',
+      detail: '# Renewal\n\n- [decision] the original detail, second pass\n',
+    },
     { now: UPDATED_AT },
   );
   const second = await updateNote(
     root,
-    { path: 'Work/Renewal.md', content: 'third', detail: 'third' },
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nThe original readable half, third pass.\n',
+      detail: '# Renewal\n\n- [decision] the original detail, third pass\n',
+    },
     { now: new Date('2026-09-01T08:00:00Z') },
   );
 
@@ -358,4 +383,71 @@ test('explains a collision even when two saves of one title race each other', as
 
   assert.equal(rejected.length, 1);
   assert.match((rejected[0] as PromiseRejectedResult).reason.message, /already exists.*update tool/s);
+});
+
+test('lets an update through when it keeps what was already in the note', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  const written = await updateNote(
+    root,
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nThe original readable half, plus a new paragraph about terms.\n',
+      detail: '# Renewal\n\n- [decision] the original detail\n- [decision] and a new one\n',
+    },
+    { now: UPDATED_AT },
+  );
+
+  assert.equal(written.note, 'Work/Renewal.md');
+});
+
+test('refuses an update that quietly drops most of a note', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        { path: 'Work/Renewal.md', content: '# Renewal\n\nShort.\n', detail: '# d\n' },
+        { now: UPDATED_AT },
+      ),
+    /would drop.*say why/s,
+  );
+});
+
+test('leaves the note untouched when it refuses a shrinking update', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(() =>
+    updateNote(
+      root,
+      { path: 'Work/Renewal.md', content: 'gone', detail: 'gone' },
+      { now: UPDATED_AT },
+    ),
+  );
+
+  const raw = await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8');
+  assert.match(raw, /The original readable half/);
+  assert.equal(await exists(path.join(root, '.recall/archive/Work/Renewal')), false);
+});
+
+test('allows a shrinking update once it says what it is dropping and why', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  const written = await updateNote(
+    root,
+    {
+      path: 'Work/Renewal.md',
+      content: '# Renewal\n\nShort.\n',
+      detail: '# d\n',
+      dropping: 'the pricing thread was a dead end raised and abandoned in this conversation',
+    },
+    { now: UPDATED_AT },
+  );
+
+  assert.match(await fs.readFile(path.join(root, written.note), 'utf8'), /Short/);
 });

@@ -194,9 +194,26 @@ export function createServer(): McpServer {
           .string()
           .optional()
           .describe('How conversation_date was established. Required whenever it is given.'),
+        dropping: z
+          .string()
+          .optional()
+          .describe(
+            'Only when this update deliberately removes material that was already in ' +
+              'the note, which is refused without it. Say what is going and why it is ' +
+              'finished with. Material you did not put there yourself is almost never ' +
+              'yours to cut, so if the reason is that it looked irrelevant, that is the ' +
+              'signal to keep it instead.',
+          ),
       },
     },
-    async ({ path: notePath, content, detail, conversation_date, conversation_date_basis }) => {
+    async ({
+      path: notePath,
+      content,
+      detail,
+      conversation_date,
+      conversation_date_basis,
+      dropping,
+    }) => {
       log(
         VAULT_ROOT,
         `recall_update_note called: path=${notePath} ` +
@@ -209,7 +226,11 @@ export function createServer(): McpServer {
           detail,
           conversationDate: conversation_date,
           conversationDateBasis: conversation_date_basis,
+          dropping,
         });
+        if (dropping?.trim()) {
+          log(VAULT_ROOT, `recall_update_note dropped material from ${written.note}: ${dropping}`);
+        }
         log(VAULT_ROOT, `recall_update_note wrote ${written.note}, archived ${written.archived.note}`);
         return {
           content: [
