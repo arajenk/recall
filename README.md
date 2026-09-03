@@ -1,124 +1,105 @@
 # Recall
 
-One button turns a useful AI conversation into organized, persistent memory. Clean `.md`
-files in a plain local folder you can open in Obsidian, VS Code, or anything else.
+One button turns a useful AI conversation into organized, persistent memory. Clean `.md` files in a plain local folder you can open in Obsidian, VS Code, or anything else.
 
-Status: **Phase 3 working.** Claude Desktop saves notes into `~/Recall`, and a
-conversation that carries on a subject you've saved before updates that note instead of
-filing a near-duplicate beside it. Every version it replaces is kept.
+Recall currently works with Claude Desktop. It can create new notes and update ones you already have, though updating is recent and hasn't seen much real use yet.
 
 ## How it works
 
-A local MCP server exposes a `save-memory` prompt and four tools. You pick the prompt in
-Claude Desktop; the model, already holding the whole conversation, decides what's worth
-keeping and splits it by subject. The prompt hands it the list of notes you already have,
-so it works out on its own which subjects are new and which continue something already
-filed, then calls `recall_save_note` or `recall_update_note` once per note. There is
-nothing extra for you to do either way. The summarizing happens inside the conversation
-you're already in, so there's no second model, no API key, and no extra cost.
+Recall runs as a local MCP server. When you feel like a conversation has something worth keeping, you say "save this to recall" in the chat, or run the `save-memory` prompt from the menu. Both do the same thing.
+
+The model uses the conversation context it can currently see to decide what's worth keeping, splits it by subject if needed, and saves the notes through Recall.
+
+It also gets a list of the notes you already have, so it works out on its own whether a subject is new or continues something already filed. If it updates a note, the version it replaced is kept under `.recall/archive` rather than thrown away.
+
+The summarizing happens inside the conversation you're already in, so Recall doesn't need its own model or API key.
 
 ## Setup
 
-Already registered in `~/Library/Application Support/Claude/claude_desktop_config.json`.
-**Restart Claude Desktop.** After that there are two ways to save, and they run the same
-instructions:
+### Requirements
 
-- **Just ask.** "Save this to Recall", "remember this one", whatever wording. The model
-  calls a tool that hands it the instructions.
-- **The `+` menu**, under `recall`, then `save-memory`. Slower to reach, but it fires
-  every time rather than depending on the model reading your phrasing correctly.
+- Node.js 24+
+- Claude Desktop
+- macOS (currently the only platform I've tested)
 
-Vault defaults to `~/Recall`; override with the `RECALL_VAULT` env var.
+Clone the repo and install dependencies:
+
+```bash
+git clone <repo-url>
+cd recall
+npm install
+```
+
+Run the server:
+
+```bash
+npm start
+```
+
+Then add Recall to your Claude Desktop MCP config and restart Claude Desktop.
+
+Once it's connected, `save-memory` should show up in the prompt picker under `recall`.
+
+By default, notes are saved to `~/Recall`. You can change this with the `RECALL_VAULT` environment variable.
 
 ## Using it
 
-Have a real conversation, then ask it to save, or run the `save-memory` prompt. The model
-will:
+Have a normal conversation, then say "save this to recall" whenever there's something you want to keep. Name Recall specifically. "Save this" on its own tends to get a question back about what you mean, and "remember this" goes to Claude's own built-in memory, which is a different store you can't open in Obsidian.
 
-1. split the conversation by subject, different destination folder means a different note
-2. match those subjects against the notes already in your vault
-3. call `recall_read_note` on any note it's continuing, to see what's actually there
-4. call `recall_save_note` for new subjects, `recall_update_note` for continued ones
-5. tell you where each landed, which were updated, and which folders it created
+Recall will look at your existing folders, figure out what from the conversation is actually worth saving, and organize it into the vault.
 
-Check the folders it creates, especially early. The vault starts empty, so the first
-several saves define your taxonomy, and a bad guess is much cheaper to fix at ten notes
-than at two hundred.
+One conversation can create multiple notes. If you talked about completely different things, Recall can split them instead of shoving everything into one file.
+
+Especially when your vault is new, check where things end up. The first few saves will start defining how your folders are organized.
 
 ## What the notes look like
 
-Every save writes **two linked files**:
+Every save writes two linked files:
 
+```text
+~/Recall/Work/Acme/Contract Renewal.md
+~/Recall/_detail/Work/Acme/Contract Renewal.md
 ```
-~/Recall/Work/Acme/Contract Renewal.md          ← you read this: prose, no tags
-~/Recall/_detail/Work/Acme/Contract Renewal.md  ← tags, evidence, confidence
-```
 
-The readable note is prose written to you, meant to be read start to finish. It runs as
-long as the conversation actually warrants: a thin conversation gets a short note, a dense
-one gets a long note, and nothing worth keeping gets cut to hit a length. The detail counterpart carries the machine-facing precision, `[decision]`,
-`[agreed]`, `[suggested]`, `[assumption]`, `[corrected]`, plus evidence and confidence , 
-so the readable half never has to look like a log.
+The first is the one you actually read. It's clean prose without a bunch of tags or metadata getting in the way.
 
-They cannot drift apart: one tool call writes both or neither, they mirror each other's
-paths, and each points at the other in frontmatter. There is no code path that produces
-one alone.
+The `_detail` version is for future AI sessions. It keeps things like decisions, suggestions, corrections, assumptions, evidence, and confidence.
 
-An update rewrites the whole note rather than appending to it, so what you read is always
-the current picture rather than a changelog. A conversation updating a note it didn't
-write can add to it and correct it, but can't cut what's already there for seeming
-irrelevant, since it can't see the conversation that put it there. Only the conversation
-that established something gets to retire it.
+The important rule is that Recall should never turn something the AI suggested into something you supposedly said or believed. The detail note keeps that distinction explicit, while the readable note just writes it naturally.
 
-That last part is checked, not just asked for: an update that keeps less than 70% of
-either half is refused unless it says what it's dropping and why, and the reason goes in
-the log. The version it replaced goes to
-`~/Recall/.recall/archive/`, both halves, one timestamped file per version. Nothing is
-overwritten without a copy being kept first, which is the only reason updating in place is
-allowed at all. The archive lives in a dot-folder, so Obsidian and the model both ignore
-it.
+Both files are written together and point to each other, so they can't drift apart.
 
-The rule the product lives on holds in both halves: the model must never record something
-it generated as something you said. In the detail note that's the tag; in the readable
-note it's the wording ("you decided" vs "I suggested it and you didn't take a position").
+## Dates
 
-Folder conventions: `Work/` is things done for money, `Projects/` holds side projects one
-subfolder each. Top-level folders are areas, never project names.
+Recall knows when it saved a note. It doesn't necessarily know when the original conversation happened.
 
-## Dates, and what Recall honestly knows
+`saved` and `updated` are stamped by the server.
 
-Each note carries `saved` / `updated`, stamped by the server. When a note is updated,
-`saved` stays put and only `updated` moves, so a note you revised last week doesn't start
-claiming it was written last week. It is the only party here that
-actually knows the time. These say when Recall wrote the note, **not** when the
-conversation happened.
+`conversation_date` is only added when there's actual evidence for it, like a date mentioned in the conversation. Otherwise it stays unknown instead of guessing that the conversation happened today.
 
-Those are different facts, and Recall usually can't know the second one. MCP exposes no
-conversation metadata to a server: no transcript, no message timestamps, no start date.
-The model can't see message timestamps either, so on an old thread reopened today it also
-thinks it's today.
+This matters when saving older conversations because an old conversation imported today shouldn't suddenly look new.
 
-So `conversation_date` is written only when there's real evidence, you said when it was,
-or the conversation contains dated content, and always alongside a
-`conversation_date_basis` recording how it was established. A date offered without a basis
-is refused. Absent means unknown, and never silently becomes today.
+## Current limitations
 
-That matters for the future context pack: an old conversation imported today must not read
-as fresh just because Recall saved it today.
+Recall is still early, and Claude Desktop is the only client so far. Updating an existing note is built and covered by tests, but it hasn't had much use outside them yet, so treat it as the newest part.
+
+It can also only save what the model can still see. If the beginning of a really long conversation has already fallen out of context, Recall can't magically recover it. For long conversations, save periodically instead of waiting until the very end.
 
 ## Development
 
 ```bash
-npm test        # node's built-in runner, no build step
-npm start       # run the server directly over stdio
+npm test
+npm start
 ```
 
-`prompts/extraction-prompt.md` is the canonical prompt and the actual product, every path
-reads it, and it must never fork per platform. `prompts/paste-version.md` is the same
-prompt with placeholders filled by hand, for testing in a chat without the server.
+`prompts/extraction-prompt.md` is the actual prompt Recall uses.
 
-## A limit worth knowing
+`prompts/paste-version.md` is a version you can paste into a conversation manually to test the extraction without running the server.
 
-The model can only summarize what it can still see. If the app has already dropped the
-earliest part of a long conversation, no prompt recovers it. Save periodically rather than
-once at the end.
+## Why I built it
+
+Coding agents already have files they can use to pick up where an old session left off.
+
+I wanted the same thing for normal AI conversations.
+
+Your AI conversation can disappear. The useful context shouldn't.
