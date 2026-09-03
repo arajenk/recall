@@ -106,7 +106,11 @@ src/vault.ts                   folder and note listing, path safety
 src/notes.ts                   writes, reads, updates and archives the pair
 src/prompt.ts                  fills the template, owns the output contract
 src/server.test.ts             the tool surface, over an in-memory transport
+src/notes.test.ts              the pair, updates, the archive, the retention floor
+src/vault.test.ts              listing and path safety
+src/prompt.test.ts             template filling, and holds paste-version in line
 src/log.ts                     appends to <vault>/.recall/server.log
+docs/specs/                    designs for work that is not built yet
 ```
 
 ## Running it
@@ -146,6 +150,15 @@ conversation's material, and the retention floor are all verified in tests and a
 scratch server, and none of them have been exercised in Claude Desktop. Two conversations
 about one subject, saved in turn, is the thing that closes this. Do that before trusting
 any of it, and before building anything else on top.
+
+Phase 4 is designed and not started:
+`docs/specs/2026-09-03-bidirectional-recall-design.md` covers notes being read back into a
+conversation. Saving stays manual: an earlier draft had retrieval responses carry a save
+nudge, and it was cut because a server cannot save anything anyway, so the nudge only ever
+bought a reminder at a moment the model picked rather than one you did. Read the staging
+section before touching any of it. The whole design rests on one untested assumption,
+that the model will call a retrieval tool on its own, and the plan is to find that out
+cheaply before building the rest.
 
 Nothing prunes the archive yet, so it grows without limit. Notes are small and the vault
 is one person's, so this is fine for a long while, but it is the next thing to bite.
