@@ -28,27 +28,51 @@ This works better if you add a line to your Claude Desktop custom instructions t
 
 - Node.js 24+
 - Claude Desktop
-- macOS (currently the only platform I've tested)
+- npm
 
-Clone the repo and install dependencies:
+Run:
+
+```bash
+npx recall-vault setup
+```
+
+This installs `recall-vault` globally, finds Claude Desktop's config file, and adds Recall
+to it. If it can't find or read that file, it prints the config block for you to paste in
+by hand instead of guessing wrong. Restart Claude Desktop afterward.
+
+Once it's connected, `save-memory` should show up in the prompt picker under `recall-vault`.
+
+By default, notes are saved to `~/Recall`. You can change this with the `RECALL_VAULT`
+environment variable before running setup.
+
+This has been tested on macOS. Setup also writes a config on Windows and Linux from known
+convention, but that path is untested; if it doesn't work, please open an issue.
+
+### Removing it
+
+```bash
+npx recall-vault uninstall
+```
+
+This removes Recall from Claude Desktop's config, leaving every other MCP server you have
+configured untouched and leaving your notes exactly where they are. To also remove the
+`recall-vault` command itself, run `npm uninstall -g recall-vault` separately.
+
+### Running from source
+
+If you're contributing or want to run against a local checkout instead of the published
+package:
 
 ```bash
 git clone <repo-url>
 cd recall
 npm install
-```
-
-Run the server:
-
-```bash
 npm start
 ```
 
-Then add Recall to your Claude Desktop MCP config and restart Claude Desktop.
-
-Once it's connected, `save-memory` should show up in the prompt picker under `recall`.
-
-By default, notes are saved to `~/Recall`. You can change this with the `RECALL_VAULT` environment variable.
+Then add the server to Claude Desktop's config by hand, pointing `command` at your local
+Node binary and `args` at the absolute path to `src/server.ts` in your checkout, since
+Claude Desktop launches without your shell PATH.
 
 ## Using it
 
