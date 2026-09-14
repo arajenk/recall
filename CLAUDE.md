@@ -118,14 +118,21 @@ src/vault.ts                   folder and note listing, path safety
 src/notes.ts                   writes, reads, updates and archives the pair
 src/search.ts                  the standing list and recall_search's shortlist
 src/prompt.ts                  fills the template, owns the output contract
+src/cli.ts                     bin.recall-vault, dispatches to server/setup/uninstall
+src/setup.ts                   npx recall-vault setup: writes Claude Desktop's config
+src/uninstall.ts               npx recall-vault uninstall: removes it again
 src/server.test.ts             the tool surface, over an in-memory transport
 src/notes.test.ts              the pair, updates, the archive, the retention floor
 src/vault.test.ts              listing and path safety
 src/search.test.ts             title listing, shortlist matching, the gist, the cap
 src/prompt.test.ts             template filling, and holds paste-version in line
+src/cli.test.ts                dispatch, and that importing it starts nothing
+src/setup.test.ts              path detection, plausibility check, idempotent merge
+src/uninstall.test.ts          removing only the recall-vault entry
 src/log.ts                     appends to <vault>/.recall/server.log
 docs/specs/                    designs for work that is not built yet, kept local only
                                 (gitignored, not part of the public repo)
+docs/superpowers/plans/        implementation plans, tracked and public
 ```
 
 ## Running it
@@ -138,9 +145,18 @@ npm start       # stdio server, mostly useful for piping raw JSON-RPC at it
 Needs Node 24 or newer, since the code imports `.ts` files directly and relies on native
 type stripping with no build step. Only tested on 25.
 
-Registered in `~/Library/Application Support/Claude/claude_desktop_config.json` with an
-absolute node path, since Claude Desktop launches without your shell PATH. Restart the app
-to pick up code changes.
+Published to npm as `recall-vault`. `npx recall-vault setup` installs it globally, detects
+Claude Desktop's config path for the current OS, and writes the `mcpServers.recall-vault`
+entry itself, backing up the existing file first. Re-running it replaces that entry in
+place rather than duplicating it. `npx recall-vault uninstall` reverses just that entry,
+leaving other configured servers and the vault itself untouched. Only the macOS config
+path (`~/Library/Application Support/Claude/claude_desktop_config.json`) has actually been
+exercised against a real install; Windows and Linux paths are written from convention and
+setup says so when it uses them. Design in
+`docs/superpowers/plans/2026-09-14-npm-distribution.md` and its spec,
+`docs/specs/2026-09-14-npm-distribution-design.md`.
+
+Restart Claude Desktop after setup or uninstall to pick up the change.
 
 ## Where it is
 
