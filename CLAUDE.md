@@ -227,11 +227,12 @@ the tool's own description, the same standing-instruction channel `recall_search
 list uses, because the model does the reconciling and needs the rule at the moment it reads
 the notes. All of this is covered by `notes.test.ts` and `server.test.ts`.
 
-Tested on 2026-09-13, in the same vault, on a note (`Personal/Finance/Loan Payoff Timing.md`) carrying a `[suggested]` item the user never took a position
-on. Asked directly whether they had decided to choose between two payoff options
-another disbursement, the model correctly reported that as still open — it named the
-suggestion as a suggestion, not a decision, and did not guess a side the user never
-picked. Same self-correction pattern as Stage 1: it first called `recall_context` with a
+Tested on 2026-09-13, in the same vault, on a note (`Personal/Finance/Loan Payoff
+Timing.md`) carrying a `[suggested]` item the user never took a position on. Asked
+directly whether they had decided between two payoff options, the model correctly
+reported that as still open — it named the suggestion as a suggestion, not a decision,
+and did not guess a side the user never picked. Same self-correction pattern as Stage 1:
+it first called `recall_context` with a
 path missing `.md` (loaded 0/1), then fell back to `recall_search` for the real path
 before retrying `recall_context` successfully. One real success on the "unknown stays
 unknown" rule; the decision-precedence ordering (decision beats agreement beats
