@@ -6,7 +6,7 @@ Turns a useful AI conversation into a clean `.md` file in a local folder you con
 
 Say "save this to recall," or run the `save-memory` prompt from the menu. The model looks at the conversation and the notes you already have, decides what's worth keeping and whether it's new or continues something already filed, and writes it. Updates archive the old version instead of overwriting it. No API key needed: the summarizing happens in the conversation you're already in.
 
-Recall is also readable, not just writable. `recall_search` does a keyword search over your vault; `recall_context` loads the matching notes and works out what to trust when they disagree (something you said or decided outranks something the AI once suggested, and unresolved questions stay unresolved instead of getting guessed at). This works much better if you add a line to Claude Desktop's custom instructions telling it to check Recall before answering questions about things you might have written down; without that nudge it won't reliably think to search on its own.
+Recall is also readable, not just writable. `recall_search` does a keyword search over your vault, and `recall_context` loads the matching notes and works out what to trust when they disagree: something you actually said or decided outranks something the AI once suggested, and if nothing settles it, it says so instead of guessing. This works much better if you add a line to Claude Desktop's custom instructions telling it to check Recall before answering questions about things you might have written down. Without that nudge it won't reliably think to search on its own.
 
 ## Setup
 
@@ -49,7 +49,7 @@ The first is what you read: plain prose, no clutter. The `_detail` half is for f
 
 ## Current limitations
 
-Claude Desktop is the only client so far. `recall_search` and `recall_context` work and have run in real conversations, but in ordinary use Claude tends to search and then read a note directly, skipping the reconciliation step, so that part is lightly exercised. Search can also miss a note on an odd phrasing and needs a retry rather than concluding nothing exists.
+Claude Desktop is the only client so far. `recall_search` and `recall_context` work and have run in real conversations, but in ordinary use Claude tends to search and then read a note directly, skipping the reconciliation step, so that part hasn't seen much real use yet. Search can also miss a note on an odd phrasing and needs a retry rather than concluding nothing exists.
 
 ## Development
 
@@ -62,4 +62,4 @@ npm start
 
 ## Why
 
-Coding agents already have files to pick up where an old session left off. Your AI conversations should too, instead of just disappearing.
+Coding agents already have files to pick up where they left off. I wanted the same thing for regular conversations, since a chat can disappear but what you actually decided in it shouldn't have to.
