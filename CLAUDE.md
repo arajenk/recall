@@ -76,8 +76,13 @@ becoming today.
 **Every path goes through `resolveInVault`.** The model chooses these paths, so they are
 untrusted input. Anything resolving outside the vault is refused, not clamped.
 
-**One prompt, never forked.** ChatGPT support is planned. When it lands it reads the same
-`extraction-prompt.md`. Two copies means two different note formats in one vault.
+**One prompt, never forked in silence.** What must never differ across copies of the
+prompt is the rules: the tag vocabulary, attribution discipline, folder/area conventions,
+one-note-or-several logic, and both-halves note structure. A test in `prompt.test.ts` holds
+`paste-version.md` to a list of load-bearing phrases from the canonical prompt. Add a rule
+to the canonical prompt and forget the other copy, and the suite catches it; it does not
+catch a rule stated differently on purpose, which is why the test checks phrases, not full
+equality.
 
 There are two ways to start a save, the `save-memory` prompt in the menu and the
 `recall_save_conversation` tool, and both go through `buildSaveMemoryPrompt`. Neither
@@ -85,12 +90,19 @@ assembles its own. A save that reaches a write tool without those instructions w
 note with no attribution rules applied, which is why both write tools tell the model to
 go back and start properly.
 
-`paste-version.md` is the one sanctioned hand-filled copy, and it drifted anyway: it spent
+`paste-version.md` is one sanctioned hand-filled copy, and it drifted anyway: it spent
 a whole phase missing the Dates section and several rules the canonical prompt had. Two
 tests in `prompt.test.ts` now hold them together, one on the `##` headings and one on a
 list of load-bearing phrases. It may differ in person ("the user" becomes "I") and in how
 it asks for output, since it has no tools to call. It may not lose a rule. Add a rule to
 the canonical prompt and you add it to both, or the suite fails, which is the point.
+
+Started as a Phase 1 testing artifact, before the server existed to fill placeholders at
+all. Now it is the actual manual path: anywhere Recall's tools are not reachable, claude.ai
+or mobile instead of Claude Desktop, or something written elsewhere and pasted in and saved
+by hand. Its folder list is a snapshot of `~/Recall` taken by hand, not live, so it goes
+stale the moment a new folder appears; check it against the real vault (`listFolders` in
+`src/vault.ts`, or just `ls ~/Recall`) before pasting if it has been a while.
 
 **No em dashes anywhere**, including tool descriptions in `server.ts`. Those get sent to
 the model as context, so dashes there work against the instruction telling it not to use
@@ -100,17 +112,20 @@ them. Same for the prompt files.
 
 ```
 prompts/extraction-prompt.md   the product. Placeholders filled by the server
-prompts/paste-version.md       same prompt by hand, for testing without the server
+prompts/paste-version.md       same prompt by hand, for when no server is reachable
 src/server.ts                  tools and the save-memory prompt
 src/vault.ts                   folder and note listing, path safety
 src/notes.ts                   writes, reads, updates and archives the pair
+src/search.ts                  the standing list and recall_search's shortlist
 src/prompt.ts                  fills the template, owns the output contract
 src/server.test.ts             the tool surface, over an in-memory transport
 src/notes.test.ts              the pair, updates, the archive, the retention floor
 src/vault.test.ts              listing and path safety
+src/search.test.ts             title listing, shortlist matching, the gist, the cap
 src/prompt.test.ts             template filling, and holds paste-version in line
 src/log.ts                     appends to <vault>/.recall/server.log
-docs/specs/                    designs for work that is not built yet
+docs/specs/                    designs for work that is not built yet, kept local only
+                                (gitignored, not part of the public repo)
 ```
 
 ## Running it
@@ -143,22 +158,119 @@ update tool rather than quietly merging them.
 A save starts either by asking in the chat, which calls `recall_save_conversation`, or
 from `save-memory` in the menu. Both build through `buildSaveMemoryPrompt`.
 
-**The update path has never run against the real vault.** As of the end of this session
-every note in `~/Recall` is a create, the archive is empty, and `recall_update_note` has
-zero calls in the log. Updating, the archive, the rule about not cutting another
-conversation's material, and the retention floor are all verified in tests and against a
-scratch server, and none of them have been exercised in Claude Desktop. Two conversations
-about one subject, saved in turn, is the thing that closes this. Do that before trusting
-any of it, and before building anything else on top.
+**The update path has now run against the real vault.** A scripted client, connected the
+same way `server.test.ts` connects one, called `recall_save_note` then `recall_update_note`
+on the same path in `~/Recall` (a throwaway note, deleted afterward). It confirmed the
+whole chain for real: the pair gets rewritten, the pre-update pair lands in
+`.recall/archive/...`, `saved` carries forward while only `updated` moves, the retention
+floor actually refuses a gutting update with no `dropping`, and `recall_update_note` now
+has entries in `~/Recall/.recall/server.log`. What this has not done is run inside an
+actual Claude Desktop conversation, where the model itself decides create vs. update from
+the note inventory rather than being told which tool to call. That is the remaining gap
+before trusting this fully.
 
-Phase 4 is designed and not started:
+Phase 4 is designed and its first stage is now built, not yet validated:
 `docs/specs/2026-09-03-bidirectional-recall-design.md` covers notes being read back into a
 conversation. Saving stays manual: an earlier draft had retrieval responses carry a save
 nudge, and it was cut because a server cannot save anything anyway, so the nudge only ever
-bought a reminder at a moment the model picked rather than one you did. Read the staging
-section before touching any of it. The whole design rests on one untested assumption,
-that the model will call a retrieval tool on its own, and the plan is to find that out
-cheaply before building the rest.
+bought a reminder at a moment the model picked rather than one you did.
+
+Stage 1 of that design is in code: `recall_search` in `src/server.ts`, backed by
+`src/search.ts`. `createServer` now builds a standing list from the vault's own note
+titles at construction time and embeds it in `recall_search`'s description, so the model
+knows what already exists before it ever calls the tool. `recall_search` itself does a
+plain AND-match over note paths and bodies, capped at five results, returning only a
+path, its saved and updated dates, and a one line gist built from the note's own heading
+and opening line, never the note itself. `createServer` is now `async` and takes an
+optional `vaultRoot`, both so the standing list can read real vault contents at startup
+and so tests can point it at an isolated temp vault instead of the real one.
+
+**This has now run inside an actual Claude Desktop conversation, and the tool description
+alone is not enough, but a client-side nudge on top of it is.** The whole design rested on
+one assumption, that the model will call a retrieval tool on its own with no prompting,
+once a tool description tells it the vault has something relevant. Tested on 2026-09-13
+against the real vault, several natural conversations asked directly about subjects the
+standing list named, including one where the model had no other source for the answer and
+said plainly it did not know. `recall_search` was never called on the strength of the tool
+description by itself.
+
+Along the way, `~/Library/Application Support/Claude/claude_desktop_config.json` was found
+pointing at a path that had never existed (`Dev Projects` instead of `Dev`), so the first
+several attempts were testing nothing at all. That got fixed, and the negative result
+above is from after the fix, with the server confirmed running.
+
+Adding one line to Claude Desktop's own custom instructions (Settings, Profile, an account
+setting, not a file in this repo), telling the model to check Recall before answering
+questions about past projects or decisions, changed the result. In a fresh chat asked
+about the same kind of subject, `recall_search` fired unprompted, including a self
+correction: it guessed a note path directly first, that failed, then it fell back to
+`recall_search`, got a shortlist, and read the right note. Log entries
+2026-09-13T01:07:54 through 01:08:02 in `~/Recall/.recall/server.log`.
+
+So Stage 1's mechanism works, but only paired with an instruction this repo cannot ship or
+version, since it lives in the user's account settings rather than in code. One success is
+not yet a pattern proven, so Stage 2 (`recall_context`) proceeds provisionally rather than
+on full confidence, and it is worth watching a few more natural conversations to confirm
+this was not a fluke before leaning on it.
+
+**Stage 2 is now in code and has run once against a real conversation, successfully.**
+`recall_context` lives in `src/server.ts`, backed by `loadContext` in `src/notes.ts`. It
+takes note paths (as `recall_search` returns them) and loads each note's detail half plus
+its saved/updated dates — never the readable half, since the readable half has its
+attribution brackets stripped and reconciling conflicting notes is the whole point of this
+tool. A bad path or a note missing its detail half is reported inline per path rather than
+failing the whole call, since the model may ask for several notes at once and one miss
+should not lose the rest. The conflict-resolution rules from the design doc (current
+statement outranks everything, then decision > agreement > suggestion > assumption > claim,
+then more recent within the same kind, unknown stays unknown rather than guessing) live in
+the tool's own description, the same standing-instruction channel `recall_search`'s note
+list uses, because the model does the reconciling and needs the rule at the moment it reads
+the notes. All of this is covered by `notes.test.ts` and `server.test.ts`.
+
+Tested on 2026-09-13, in the same vault, on a note (`Personal/Finance/Loan Payoff Timing.md`) carrying a `[suggested]` item the user never took a position
+on. Asked directly whether they had decided to choose between two payoff options
+another disbursement, the model correctly reported that as still open — it named the
+suggestion as a suggestion, not a decision, and did not guess a side the user never
+picked. Same self-correction pattern as Stage 1: it first called `recall_context` with a
+path missing `.md` (loaded 0/1), then fell back to `recall_search` for the real path
+before retrying `recall_context` successfully. One real success on the "unknown stays
+unknown" rule; the decision-precedence ordering (decision beats agreement beats
+suggestion, etc.) has not yet been exercised by an actual conflict between two notes, so
+that part is still unvalidated.
+
+**A day of ordinary use on 2026-09-13 surfaced two gaps in the custom-instructions nudge
+itself, from reading `~/Recall/.recall/server.log`, not from a scripted test.** First,
+`recall_context` has never actually fired in real usage. The model's habit is
+`recall_search` then `recall_read_note` on the readable half directly, skipping the tool
+built specifically to load the detail half and apply the conflict-resolution ordering.
+That means the precedence rules described two paragraphs up are still unexercised in
+practice, not just unexercised by an engineered conflict. Second, `recall_search` returned
+zero matches for both `ChatGPT Claude subscription` and `personality preferences
+conversational tone` moments before a new note got created on exactly that subject with
+`recall_save_note` rather than updating something related, echoing the same
+create-vs-update judgment gap noted in Phase 3 above; a single failed phrasing was treated
+as "nothing exists" rather than prompting a retry.
+
+The custom instruction line quoted above only told the model to check Recall before
+answering, not which tool to prefer once it has a match or what to do on a miss. It now
+reads:
+
+> Before answering a question about an ongoing project, past decision, or something I
+> might have written down, check the Recall vault with `recall_search` first. If it
+> returns matches, use `recall_context` to load and reconcile them rather than
+> `recall_read_note` alone. If it returns zero matches, try at least one different
+> phrasing before concluding nothing exists.
+
+This is still an account setting, not a file in this repo, so nothing here enforces it;
+the next thing to confirm is whether `recall_context` starts actually appearing in the
+server log, and whether a second search phrasing catches what the first one missed.
+
+A ChatGPT/Notion bridge (ChatGPT writing into a Notion inbox, a local importer draining
+that into `saveNote`/`updateNote`) was designed and partly built, then shelved on
+2026-09-13: too much setup friction (a custom GPT, two Notion databases, an Actions schema,
+a manual import step) for what it bought. The code, prompts, and design doc were removed
+rather than left half-built and rotting. Not ruled out forever, just off the table until a
+lower-friction way to get ChatGPT into this vault turns up.
 
 Nothing prunes the archive yet, so it grows without limit. Notes are small and the vault
 is one person's, so this is fine for a long while, but it is the next thing to bite.

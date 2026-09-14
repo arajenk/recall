@@ -238,6 +238,58 @@ export async function saveNote(
   return relative;
 }
 
+export type ContextEntry =
+  | { path: string; ok: true; saved: string; updated: string; detail: string }
+  | { path: string; ok: false; error: string };
+
+/**
+ * Loads the detail half of specific notes, with their dates, for feeding back
+ * into a conversation as background. Never the readable half: the readable
+ * half has its attribution brackets stripped, and the whole point of feeding
+ * context back is reasoning over who said what.
+ *
+ * Every path is attempted independently. One bad path in a batch does not
+ * lose the notes that were fine, and a missing detail half is reported rather
+ * than silently skipped, since the pair invariant says it should not happen.
+ */
+export async function loadContext(
+  vaultRoot: string,
+  notePaths: string[],
+): Promise<ContextEntry[]> {
+  const entries: ContextEntry[] = [];
+
+  for (const notePath of notePaths) {
+    try {
+      const relative = pairPaths(notePath);
+      const absoluteNote = resolveInVault(vaultRoot, relative.note);
+      const absoluteDetail = resolveInVault(vaultRoot, relative.detail);
+
+      if (!(await exists(absoluteNote))) {
+        throw new Error(`There is no note at "${relative.note}".`);
+      }
+      if (!(await exists(absoluteDetail))) {
+        throw new Error(
+          `The note "${relative.note}" has lost its detail half, which should be at ` +
+            `"${relative.detail}". Refusing to load half a pair.`,
+        );
+      }
+
+      const { fields, body } = splitFrontmatter(await fs.readFile(absoluteDetail, 'utf8'));
+      entries.push({
+        path: notePath,
+        ok: true,
+        saved: fields.saved ?? '(unknown)',
+        updated: fields.updated ?? '(unknown)',
+        detail: body,
+      });
+    } catch (error) {
+      entries.push({ path: notePath, ok: false, error: (error as Error).message });
+    }
+  }
+
+  return entries;
+}
+
 export interface NoteUpdate extends NoteBodies {
   /** Vault-relative path of the readable half, as `readNote` was given it. */
   path: string;

@@ -8,7 +8,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 import { listFolders } from './vault.ts';
-import { saveNote, readNote, updateNote } from './notes.ts';
+import { saveNote, readNote, updateNote, loadContext } from './notes.ts';
+import { listNoteTitles, searchNotes } from './search.ts';
 import { buildSaveMemoryPrompt } from './prompt.ts';
 import { log } from './log.ts';
 
@@ -16,8 +17,24 @@ const VAULT_ROOT = process.env.RECALL_VAULT ?? path.join(os.homedir(), 'Recall')
 
 const EMPTY_TREE = '(none yet, the vault is empty)';
 
-export function createServer(): McpServer {
+/**
+ * Names the notes already in the vault, so `recall_search`'s description
+ * stops the model from never thinking of the vault at all. This is level one
+ * of retrieval: always present, paid for once at startup rather than on every
+ * turn.
+ */
+function standingList(titles: string[]): string {
+  if (!titles.length) return 'The vault has no notes yet.';
+
+  return (
+    'Notes already in the vault, so you know what might already exist before ' +
+    `searching:\n${titles.map((title) => `- ${title}`).join('\n')}`
+  );
+}
+
+export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpServer> {
   const server = new McpServer({ name: 'recall', version: '0.1.0' });
+  const titles = await listNoteTitles(vaultRoot);
 
   server.registerTool(
     'recall_list_vault',
@@ -30,11 +47,45 @@ export function createServer(): McpServer {
       inputSchema: {},
     },
     async () => {
-      log(VAULT_ROOT, 'recall_list_vault called');
-      const folders = await listFolders(VAULT_ROOT);
-      log(VAULT_ROOT, `recall_list_vault returned ${folders.length} folder(s)`);
+      log(vaultRoot, 'recall_list_vault called');
+      const folders = await listFolders(vaultRoot);
+      log(vaultRoot, `recall_list_vault returned ${folders.length} folder(s)`);
       return {
         content: [{ type: 'text', text: folders.length ? folders.join('\n') : EMPTY_TREE }],
+      };
+    },
+  );
+
+  server.registerTool(
+    'recall_search',
+    {
+      title: 'Search the Recall vault',
+      description:
+        "Searches the readable text of notes already in the user's own Recall vault. " +
+        "This is NOT Claude's built-in memory. Returns a short shortlist, path plus " +
+        'dates plus a one line gist, never a whole note. Call `recall_read_note` on ' +
+        'a path from the results to get the full note.\n\n' +
+        standingList(titles),
+      inputSchema: {
+        query: z.string().describe('Plain text terms to look for. All terms must match.'),
+      },
+    },
+    async ({ query }) => {
+      log(vaultRoot, `recall_search called: query=${query}`);
+      const matches = await searchNotes(vaultRoot, query);
+      log(vaultRoot, `recall_search returned ${matches.length} match(es)`);
+      if (!matches.length) {
+        return { content: [{ type: 'text', text: 'No matching notes in the vault.' }] };
+      }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: matches
+              .map((match) => `- ${match.path} (saved ${match.saved}, updated ${match.updated}): ${match.gist}`)
+              .join('\n'),
+          },
+        ],
       };
     },
   );
@@ -91,12 +142,12 @@ export function createServer(): McpServer {
     },
     async ({ folder, title, content, detail, conversation_date, conversation_date_basis }) => {
       log(
-        VAULT_ROOT,
+        vaultRoot,
         `recall_save_note called: folder=${folder} title=${title} ` +
           `content=${content?.length ?? 0}b detail=${detail?.length ?? 0}b`,
       );
       try {
-        const written = await saveNote(VAULT_ROOT, {
+        const written = await saveNote(vaultRoot, {
           folder,
           title,
           content,
@@ -104,12 +155,12 @@ export function createServer(): McpServer {
           conversationDate: conversation_date,
           conversationDateBasis: conversation_date_basis,
         });
-        log(VAULT_ROOT, `recall_save_note wrote ${written.note}`);
+        log(vaultRoot, `recall_save_note wrote ${written.note}`);
         return {
           content: [{ type: 'text', text: `Saved to ${written.note} (detail: ${written.detail})` }],
         };
       } catch (error) {
-        log(VAULT_ROOT, `recall_save_note failed: ${(error as Error).message}`);
+        log(vaultRoot, `recall_save_note failed: ${(error as Error).message}`);
         return {
           isError: true,
           content: [{ type: 'text', text: (error as Error).message }],
@@ -134,10 +185,10 @@ export function createServer(): McpServer {
       },
     },
     async ({ path: notePath }) => {
-      log(VAULT_ROOT, `recall_read_note called: path=${notePath}`);
+      log(vaultRoot, `recall_read_note called: path=${notePath}`);
       try {
-        const note = await readNote(VAULT_ROOT, notePath);
-        log(VAULT_ROOT, `recall_read_note returned ${notePath}`);
+        const note = await readNote(vaultRoot, notePath);
+        log(vaultRoot, `recall_read_note returned ${notePath}`);
         return {
           content: [
             {
@@ -147,9 +198,53 @@ export function createServer(): McpServer {
           ],
         };
       } catch (error) {
-        log(VAULT_ROOT, `recall_read_note failed: ${(error as Error).message}`);
+        log(vaultRoot, `recall_read_note failed: ${(error as Error).message}`);
         return { isError: true, content: [{ type: 'text', text: (error as Error).message }] };
       }
+    },
+  );
+
+  server.registerTool(
+    'recall_context',
+    {
+      title: 'Load background from the Recall vault',
+      description:
+        "Loads the detail half of specific notes from the user's own Recall vault, framed " +
+        "as background for the current conversation. This is NOT Claude's built-in memory. " +
+        'Call `recall_search` first to find which notes matter, then pass their paths here ' +
+        'rather than guessing a path directly.\n\n' +
+        'Each note comes back with its saved and updated dates and its detail half, which ' +
+        'carries attribution tags: [decision] is something the user decided, [agreed] ' +
+        'something they agreed to, [suggested] your own suggestion, [assumption] something ' +
+        'assumed rather than confirmed, [claim] a fact you brought in from your own ' +
+        'knowledge rather than from the user. When notes disagree, resolve it in this ' +
+        'order: what the user says right now outranks everything here; failing that, a ' +
+        'decision outranks an agreement, which outranks a suggestion, which outranks an ' +
+        'assumption, which outranks a claim; between two of the same kind, the more recent ' +
+        'one holds. Newer never simply beats older on its own — a decision from months ago ' +
+        'still outranks a suggestion from yesterday. If you cannot tell which position the ' +
+        'user still holds, say so plainly rather than picking one.',
+      inputSchema: {
+        paths: z
+          .array(z.string())
+          .describe('Vault-relative note paths, as returned by recall_search.'),
+      },
+    },
+    async ({ paths }) => {
+      log(vaultRoot, `recall_context called: paths=${paths.join(', ')}`);
+      const entries = await loadContext(vaultRoot, paths);
+      const ok = entries.filter((entry) => entry.ok).length;
+      log(vaultRoot, `recall_context loaded ${ok}/${entries.length} note(s)`);
+
+      const text = entries
+        .map((entry) =>
+          entry.ok
+            ? `### ${entry.path} (saved ${entry.saved}, updated ${entry.updated})\n\n${entry.detail}`
+            : `### ${entry.path}\n\n${entry.error}`,
+        )
+        .join('\n\n');
+
+      return { content: [{ type: 'text', text }] };
     },
   );
 
@@ -215,12 +310,12 @@ export function createServer(): McpServer {
       dropping,
     }) => {
       log(
-        VAULT_ROOT,
+        vaultRoot,
         `recall_update_note called: path=${notePath} ` +
           `content=${content?.length ?? 0}b detail=${detail?.length ?? 0}b`,
       );
       try {
-        const written = await updateNote(VAULT_ROOT, {
+        const written = await updateNote(vaultRoot, {
           path: notePath,
           content,
           detail,
@@ -229,9 +324,9 @@ export function createServer(): McpServer {
           dropping,
         });
         if (dropping?.trim()) {
-          log(VAULT_ROOT, `recall_update_note dropped material from ${written.note}: ${dropping}`);
+          log(vaultRoot, `recall_update_note dropped material from ${written.note}: ${dropping}`);
         }
-        log(VAULT_ROOT, `recall_update_note wrote ${written.note}, archived ${written.archived.note}`);
+        log(vaultRoot, `recall_update_note wrote ${written.note}, archived ${written.archived.note}`);
         return {
           content: [
             {
@@ -241,7 +336,7 @@ export function createServer(): McpServer {
           ],
         };
       } catch (error) {
-        log(VAULT_ROOT, `recall_update_note failed: ${(error as Error).message}`);
+        log(vaultRoot, `recall_update_note failed: ${(error as Error).message}`);
         return { isError: true, content: [{ type: 'text', text: (error as Error).message }] };
       }
     },
@@ -268,8 +363,8 @@ export function createServer(): McpServer {
       inputSchema: {},
     },
     async () => {
-      log(VAULT_ROOT, 'recall_save_conversation called');
-      const prompt = await buildSaveMemoryPrompt(VAULT_ROOT);
+      log(vaultRoot, 'recall_save_conversation called');
+      const prompt = await buildSaveMemoryPrompt(vaultRoot);
       return {
         content: [
           {
@@ -294,7 +389,7 @@ export function createServer(): McpServer {
       argsSchema: {},
     },
     async () => {
-      const text = await buildSaveMemoryPrompt(VAULT_ROOT);
+      const text = await buildSaveMemoryPrompt(vaultRoot);
 
       return { messages: [{ role: 'user', content: { type: 'text', text } }] };
     },
@@ -306,7 +401,8 @@ export function createServer(): McpServer {
 async function main(): Promise<void> {
   await fs.mkdir(VAULT_ROOT, { recursive: true });
   log(VAULT_ROOT, `server starting (pid ${process.pid}, vault ${VAULT_ROOT})`);
-  await createServer().connect(new StdioServerTransport());
+  const server = await createServer();
+  await server.connect(new StdioServerTransport());
   log(VAULT_ROOT, `server connected (pid ${process.pid})`);
 }
 

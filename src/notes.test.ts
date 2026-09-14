@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { saveNote, readNote, updateNote } from './notes.ts';
+import { saveNote, readNote, updateNote, loadContext } from './notes.ts';
 import { listFolders } from './vault.ts';
 
 async function emptyVault(): Promise<string> {
@@ -450,4 +450,63 @@ test('allows a shrinking update once it says what it is dropping and why', async
   );
 
   assert.match(await fs.readFile(path.join(root, written.note), 'utf8'), /Short/);
+});
+
+test('loads a note detail half with its dates, for feeding back as context', async () => {
+  const root = await emptyVault();
+  await saveNote(
+    root,
+    {
+      folder: 'Work',
+      title: 'Renewal',
+      content: '# Renewal\n\nAcme wants three years.\n',
+      detail: '# Renewal\n\n- [decision] Three years. (evidence: user said so)\n',
+    },
+    { now: new Date('2026-08-30T12:00:00Z') },
+  );
+
+  const [entry] = await loadContext(root, ['Work/Renewal.md']);
+
+  assert.ok(entry.ok);
+  if (entry.ok) {
+    assert.equal(entry.saved, '2026-08-30');
+    assert.equal(entry.updated, '2026-08-30');
+    assert.match(entry.detail, /\[decision\] Three years/);
+    assert.doesNotMatch(entry.detail, /Acme wants three years\./);
+  }
+});
+
+test('reports a missing note by path rather than throwing for the whole batch', async () => {
+  const root = await emptyVault();
+  await saveNote(root, {
+    folder: 'Work',
+    title: 'Renewal',
+    content: '# Renewal\n',
+    detail: '# d\n',
+  });
+
+  const [ok, missing] = await loadContext(root, [
+    'Work/Renewal.md',
+    'Work/Nonexistent.md',
+  ]);
+
+  assert.ok(ok.ok);
+  assert.equal(missing.ok, false);
+  if (!missing.ok) assert.match(missing.error, /no note at/);
+});
+
+test('reports a note whose detail half is missing, instead of loading half a pair', async () => {
+  const root = await emptyVault();
+  await saveNote(root, {
+    folder: 'Work',
+    title: 'Renewal',
+    content: '# Renewal\n',
+    detail: '# d\n',
+  });
+  await fs.rm(path.join(root, '_detail/Work/Renewal.md'));
+
+  const [entry] = await loadContext(root, ['Work/Renewal.md']);
+
+  assert.equal(entry.ok, false);
+  if (!entry.ok) assert.match(entry.error, /lost its detail half/);
 });

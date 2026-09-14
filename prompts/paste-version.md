@@ -1,12 +1,21 @@
-# Paste version (for Phase 1 testing)
+# Paste version
 
-Copy everything below the line into a real conversation to test the prompt before any
-code exists. This is the same prompt as `extraction-prompt.md` with the placeholders
-filled in by hand.
+Copy everything below the line into a conversation with Claude that has no Recall tools
+available, either because you are on claude.ai or mobile instead of Claude Desktop, or
+because you are pasting in something written elsewhere (an old ChatGPT conversation, for
+example) and want it saved without switching apps. This is the same prompt as
+`extraction-prompt.md` with the placeholders filled in by hand, since there is no server
+here to fill them.
 
-The folder list currently says "none yet", which is true, the vault is empty. As real
-folders appear, paste the actual list in there so the model files into them instead of
-inventing new ones.
+If you already have Claude Desktop with Recall running, you do not need this file: say
+"save this to recall" instead and the server does this automatically with the real,
+current folder list and note inventory. Reach for this file only when no server is
+listening.
+
+The folder list below is a snapshot, not live. Before pasting, check it still matches
+`~/Recall` (or run `listFolders` from `src/vault.ts` against your real vault) and update it
+if new folders have appeared, so the model files into what already exists instead of
+inventing near-duplicates.
 
 ---
 
@@ -88,7 +97,14 @@ The folders that currently exist in that notes folder on my computer, this is th
 destination, not your memory's structure:
 
 ```
-(none yet, the folder is empty)
+Personal
+Personal/Finance
+Projects
+Projects/Gmail Sorter
+Projects/Lucent
+Projects/Omelizer
+Projects/Recall
+Work
 ```
 
 If folders are listed, use one that already fits, with its exact path. Nested paths like
