@@ -132,7 +132,8 @@ src/uninstall.test.ts          removing only the recall-vault entry
 src/log.ts                     appends to <vault>/.recall/server.log
 docs/specs/                    designs for work that is not built yet, kept local only
                                 (gitignored, not part of the public repo)
-docs/superpowers/plans/        implementation plans, tracked and public
+docs/superpowers/plans/        implementation plans, kept local only
+                                (gitignored, not part of the public repo)
 ```
 
 ## Running it
@@ -243,9 +244,9 @@ the tool's own description, the same standing-instruction channel `recall_search
 list uses, because the model does the reconciling and needs the rule at the moment it reads
 the notes. All of this is covered by `notes.test.ts` and `server.test.ts`.
 
-Tested on 2026-09-13, in the same vault, on a note (`Personal/Finance/Loan Payoff
-Timing.md`) carrying a `[suggested]` item the user never took a position on. Asked
-directly whether they had decided between two payoff options, the model correctly
+Tested on 2026-09-13, in the same vault, on a note (`Personal/Finance/Emergency Fund
+Target.md`) carrying a `[suggested]` item the user never took a position on. Asked
+directly whether they had decided between two options, the model correctly
 reported that as still open — it named the suggestion as a suggestion, not a decision,
 and did not guess a side the user never picked. Same self-correction pattern as Stage 1:
 it first called `recall_context` with a
@@ -262,8 +263,8 @@ itself, from reading `~/Recall/.recall/server.log`, not from a scripted test.** 
 built specifically to load the detail half and apply the conflict-resolution ordering.
 That means the precedence rules described two paragraphs up are still unexercised in
 practice, not just unexercised by an engineered conflict. Second, `recall_search` returned
-zero matches for both `ChatGPT Claude subscription` and `personality preferences
-conversational tone` moments before a new note got created on exactly that subject with
+zero matches for both `gym membership renewal` and `weekly meal prep schedule` moments
+before a new note got created on exactly that subject with
 `recall_save_note` rather than updating something related, echoing the same
 create-vs-update judgment gap noted in Phase 3 above; a single failed phrasing was treated
 as "nothing exists" rather than prompting a retry.

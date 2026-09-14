@@ -9,5 +9,6 @@ node_modules/
 .idea/
 .vscode/
 
-# internal design docs, not for the public repo
+# internal design docs and implementation plans, not for the public repo
 docs/specs/
+docs/superpowers/plans/
