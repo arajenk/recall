@@ -398,7 +398,7 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
   return server;
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   await fs.mkdir(VAULT_ROOT, { recursive: true });
   log(VAULT_ROOT, `server starting (pid ${process.pid}, vault ${VAULT_ROOT})`);
   const server = await createServer();
