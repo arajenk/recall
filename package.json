@@ -1,11 +1,11 @@
 {
-  "name": "recall",
+  "name": "recall-vault",
   "version": "0.1.0",
   "description": "Turns AI conversations into organized local markdown memory",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "recall": "src/server.ts"
+    "recall-vault": "src/cli.ts"
   },
   "scripts": {
     "test": "node --test \"src/**/*.test.ts\"",
@@ -16,5 +16,27 @@
   },
   "engines": {
     "node": ">=24"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arajenk/recall.git"
+  },
+  "homepage": "https://github.com/arajenk/recall#readme",
+  "bugs": {
+    "url": "https://github.com/arajenk/recall/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-desktop",
+    "memory",
+    "notes",
+    "markdown"
+  ],
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "prompts/**"
+  ]
 }
