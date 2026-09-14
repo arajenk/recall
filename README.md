@@ -2,7 +2,7 @@
 
 One button turns a useful AI conversation into organized, persistent memory. Clean `.md` files in a plain local folder you can open in Obsidian, VS Code, or anything else.
 
-Recall currently works with Claude Desktop. It can create new notes and update ones you already have, though updating is recent and hasn't seen much real use yet.
+Recall currently works with Claude Desktop. It can create new notes, update ones you already have, and pull old notes back into a conversation when they're relevant.
 
 ## How it works
 
@@ -13,6 +13,14 @@ The model uses the conversation context it can currently see to decide what's wo
 It also gets a list of the notes you already have, so it works out on its own whether a subject is new or continues something already filed. If it updates a note, the version it replaced is kept under `.recall/archive` rather than thrown away.
 
 The summarizing happens inside the conversation you're already in, so Recall doesn't need its own model or API key.
+
+## Reading notes back
+
+Recall isn't just one-way. Claude can search your vault mid-conversation and use what it finds to answer questions about past projects or decisions, instead of relying only on what's in the current chat.
+
+`recall_search` does a plain keyword search over your notes and returns a short list of matches. `recall_context` loads the fuller detail behind those matches and works out what to trust when notes disagree. Something you actually said or decided outranks something the AI once suggested. If nothing settles it, it says so instead of guessing.
+
+This works better if you add a line to your Claude Desktop custom instructions telling it to check Recall before answering questions about things you might have written down. Without that nudge, Claude won't reliably think to search on its own, even though the tools are right there.
 
 ## Setup
 
@@ -81,7 +89,9 @@ This matters when saving older conversations because an old conversation importe
 
 ## Current limitations
 
-Recall is still early, and Claude Desktop is the only client so far. Updating an existing note is built and covered by tests, but it hasn't had much use outside them yet, so treat it as the newest part.
+Recall is still early, and Claude Desktop is the only client so far.
+
+Search and context have run in real conversations and behaved correctly, including recognizing when a question has no settled answer. But in ordinary use Claude tends to search and then read a note directly, skipping `recall_context`, so the part that resolves conflicting notes hasn't really been exercised. Search can also miss a note on the first phrasing and needs a retry rather than concluding nothing exists.
 
 It can also only save what the model can still see. If the beginning of a really long conversation has already fallen out of context, Recall can't magically recover it. For long conversations, save periodically instead of waiting until the very end.
 
