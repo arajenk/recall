@@ -203,7 +203,16 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
           content: [
             {
               type: 'text',
-              text: `## content\n\n${note.content}\n\n## detail\n\n${note.detail}`,
+              text:
+                'Readable half. If you rewrite it, pass back only this text as `content`, ' +
+                `never including the line below or anything after it:\n\n${note.content}`,
+            },
+            {
+              type: 'text',
+              text:
+                'Detail half, a separate file from the readable half above. If you rewrite ' +
+                `it, pass back only this text as \`detail\`, never merged into \`content\`:` +
+                `\n\n${note.detail}`,
             },
           ],
         };

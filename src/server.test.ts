@@ -201,6 +201,38 @@ test('recall_context describes how to resolve conflicting notes, since it does t
   assert.match(description, /never a live candidate/i);
 });
 
+test('recall_read_note never hands back a heading that could be mistaken for note content', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme wants a three year term.\n',
+    detail: '# Renewal terms\n\n- [decision] Three years.\n',
+  });
+
+  const client = await connect(root);
+  const result = await client.callTool({
+    name: 'recall_read_note',
+    arguments: { path: 'Work/Acme/Renewal terms.md' },
+  });
+  const output = text(result);
+
+  /**
+   * This is the actual regression: recall_read_note used to concatenate both
+   * halves into one block of text with a "## detail" heading marking the
+   * boundary. A whole-text rewrite of the readable half, built from that
+   * response, could drag the heading and everything after it into what got
+   * submitted as `content`, writing the detail half straight into the note
+   * the user reads. Six real notes in the vault were found corrupted this
+   * exact way. The fix is the read response never containing that heading at
+   * all, backed by notes.ts refusing a heading in content outright.
+   */
+  assert.doesNotMatch(output, /^##\s+detail/im);
+  assert.match(output, /pass back only this text as `content`/);
+  assert.match(output, /pass back only this text as `detail`/);
+  assert.match(output, /never merged into `content`/);
+});
+
 test('recall_update_note applies a targeted edit end to end, through the real tool schema', async () => {
   const root = await tempVault();
   await saveNote(root, {

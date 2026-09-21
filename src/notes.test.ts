@@ -466,6 +466,97 @@ test('allows a shrinking update once it says what it is dropping and why', async
   assert.match(await fs.readFile(path.join(root, written.note), 'utf8'), /Short/);
 });
 
+test('refuses to save a note whose readable half contains a heading', async () => {
+  const root = await emptyVault();
+
+  await assert.rejects(
+    () =>
+      saveNote(
+        root,
+        {
+          folder: 'Work',
+          title: 'Renewal',
+          content: '# Renewal\n\nSome findings.\n\n## detail\n\n- [decision] leaked in\n',
+          detail: '# Renewal\n\n- [decision] leaked in\n',
+        },
+        { now: SAVED_AT },
+      ),
+    /contains a heading.*## detail/s,
+  );
+});
+
+test('refuses a whole content update that introduces a heading, the shape of a known corruption', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        {
+          path: 'Work/Renewal.md',
+          content: '# Renewal\n\nThe original readable half, plus more.\n\n## detail\n\nleaked\n',
+        },
+        { now: UPDATED_AT },
+      ),
+    /contains a heading/,
+  );
+});
+
+test('refuses a content edit that introduces a heading, not just a whole rewrite', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        {
+          path: 'Work/Renewal.md',
+          contentEdits: [
+            { oldStr: 'The original readable half.\n', newStr: 'Fine.\n\n## detail\n\nleaked\n' },
+          ],
+        },
+        { now: UPDATED_AT },
+      ),
+    /contains a heading/,
+  );
+});
+
+test('leaves an existing heading in content alone when the update never touches content', async () => {
+  const root = await emptyVault();
+
+  // Written straight to disk rather than through saveNote, since saveNote now
+  // refuses this shape too. This simulates a note that got corrupted before
+  // the check existed. A detail-only edit on it must still go through rather
+  // than getting blocked on damage this call did not introduce.
+  await fs.mkdir(path.join(root, 'Work'), { recursive: true });
+  await fs.mkdir(path.join(root, '_detail/Work'), { recursive: true });
+  await fs.writeFile(
+    path.join(root, 'Work/Already corrupted.md'),
+    '---\nsaved: 2026-03-01\nupdated: 2026-03-01\ndetail: _detail/Work/Already corrupted.md\n---\n\n' +
+      '# Already corrupted\n\nReadable text.\n\n## detail\n\nleaked earlier\n',
+    'utf8',
+  );
+  await fs.writeFile(
+    path.join(root, '_detail/Work/Already corrupted.md'),
+    '---\nsaved: 2026-03-01\nupdated: 2026-03-01\nnote: Work/Already corrupted.md\n---\n\n' +
+      '# Already corrupted\n\n- [decision] one\n',
+    'utf8',
+  );
+
+  const written = await updateNote(
+    root,
+    {
+      path: 'Work/Already corrupted.md',
+      detailEdits: [{ oldStr: '- [decision] one\n', newStr: '- [decision] one\n- [decision] two\n' }],
+    },
+    { now: UPDATED_AT },
+  );
+
+  assert.equal(written.note, 'Work/Already corrupted.md');
+});
+
 test('applies a targeted edit to one half without touching the other', async () => {
   const root = await emptyVault();
   await savedPair(root);

@@ -176,6 +176,33 @@ function isCollision(error: unknown): boolean {
   return (error as NodeJS.ErrnoException)?.code === 'EEXIST';
 }
 
+/**
+ * The readable half is prose under a single top level title; the prompt's hard
+ * rule is no headers inside it at all. This backs that rule with a check
+ * instead of leaving it to the prompt, the same move `RETENTION_FLOOR` makes.
+ *
+ * It exists because of a real corruption this shape catches: `recall_read_note`
+ * used to hand back both halves as one block of text with a `## detail` heading
+ * marking where the second half began. A whole-text rewrite of the readable
+ * half, built from that response, could drag the heading and everything under
+ * it along into what got submitted as `content`, writing the entire detail
+ * half into the note the user actually reads. The read format that caused it
+ * is fixed, but a heading in `content` is never legitimate on its own terms
+ * either, so refusing it here catches the same mistake however it happens.
+ */
+function assertNoHeadingInContent(content: string, label: string): void {
+  const heading = /^#{2,}[ \t].*$/m.exec(content);
+  if (!heading) return;
+
+  throw new Error(
+    `The readable half of "${label}" contains a heading ("${heading[0].trim()}"), which ` +
+      'the prompt says never belongs in the readable note. This is the exact shape of a ' +
+      'known mistake: the detail half getting embedded inside content instead of staying ' +
+      'in its own file. Send `content` as prose only, with attribution and detail staying ' +
+      'in `detail`.',
+  );
+}
+
 async function exists(target: string): Promise<boolean> {
   try {
     await fs.access(target);
@@ -210,6 +237,8 @@ export async function saveNote(
     note: `${note.folder}/${filename}`,
     detail: `${DETAIL_ROOT}/${note.folder}/${filename}`,
   };
+
+  assertNoHeadingInContent(note.content, relative.note);
 
   // Everything that can be rejected is resolved before anything is written, so a
   // refused save leaves neither a partial pair nor an empty folder behind.
@@ -480,6 +509,13 @@ export async function updateNote(
     note: resolveHalf(originalBodies.note, update.content, update.contentEdits, 'readable'),
     detail: resolveHalf(originalBodies.detail, update.detail, update.detailEdits, 'detail'),
   };
+
+  // Only checked when this call actually touches content. A note corrupted before
+  // this check existed must still be able to receive a detail-only edit without
+  // getting blocked on a heading it did not just introduce.
+  if (update.content !== undefined || update.contentEdits !== undefined) {
+    assertNoHeadingInContent(resolved.note, update.path);
+  }
 
   const stamps = {
     saved: previous.saved ?? isoDate(now),
