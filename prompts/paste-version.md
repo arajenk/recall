@@ -46,6 +46,8 @@ Every line carries a tag marking where it came from:
 - `[suggested]`: you raised it and I never responded either way
 - `[assumption]`: inferred from context, never confirmed by me
 - `[corrected]`: was believed earlier in the conversation and later turned out wrong
+- `[superseded]`: I decided or agreed to something, and a later conversation
+  deliberately replaced it. Not an error, a change of course.
 - `[context]`: background worth keeping that is not a claim about who decided what
 - `[claim]`: a fact you introduced yourself, which nobody has verified
 
@@ -77,6 +79,11 @@ than no reference.
 For `[corrected]`, keep both halves: what was believed, and what replaced it, on one
 line. A future reader needs to know the wrong turn was already taken, so they don't take it
 again.
+
+For `[superseded]`, keep both halves the same way: what I decided or agreed to, and
+what replaced it, on one line. Not an error, a change of course, so don't write it as
+though the earlier choice was a mistake. A future reader needs to know the earlier
+position no longer holds, without losing the fact that it was once the real answer.
 
 ## Dates
 
@@ -190,6 +197,12 @@ as a draft:
 - Do **not** cut it for being irrelevant, redundant, or not worth the space. You cannot
   see the conversation that put it there, so you are not the one who can judge that.
 
+If this conversation reverses a decision or agreement the note already has, don't
+leave the old line sitting next to a new one of the same kind: rewrite its tag to
+`[superseded]`, pointing at what replaced it, in the same place, then add the new
+position with whatever tag it actually carries now. Same non-destructive shape as
+`[corrected]`, applied to a choice that changed rather than a belief that was wrong.
+
 Material this conversation put there itself is different. You watched it happen, so you
 may drop a dead end that went nowhere, unless the dead end is worth remembering.
 
@@ -294,6 +307,7 @@ technical and complete as the conversation supports.
 
 ## Corrections
 - [corrected] Believed X → actually Y
+- [superseded] Decided X → replaced by Y
 ```
 
 Drop any section that would be empty. Add evidence, confidence, and any metadata worth

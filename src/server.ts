@@ -63,8 +63,14 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
       description:
         "Searches the readable text of notes already in the user's own Recall vault. " +
         "This is NOT Claude's built-in memory. Returns a short shortlist, path plus " +
-        'dates plus a one line gist, never a whole note. Call `recall_read_note` on ' +
-        'a path from the results to get the full note.\n\n' +
+        'dates plus a one line gist, never a whole note. If you are answering a ' +
+        'question, or more than one result looks relevant, call `recall_context` on ' +
+        'the paths that matter next, so the notes get reconciled rather than read at ' +
+        'face value. Call `recall_read_note` instead only when you already know you ' +
+        'need one specific note in full, such as right before updating it. If ' +
+        'nothing comes back, try at least one different phrasing before concluding ' +
+        'the vault has nothing on the subject: this is a plain match on the words ' +
+        'actually in a note, not a meaning search.\n\n' +
         standingList(titles),
       inputSchema: {
         query: z.string().describe('Plain text terms to look for. All terms must match.'),
@@ -119,8 +125,9 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
           .string()
           .describe(
             'The DETAIL counterpart, filed out of the way: tagged bullets ([decision], ' +
-              '[agreed], [suggested], [assumption], [corrected]) with evidence and ' +
-              'confidence. Precision over readability. Starts with its "# " heading.',
+              '[agreed], [suggested], [assumption], [corrected], [superseded]) with ' +
+              'evidence and confidence. Precision over readability. Starts with its ' +
+              '"# " heading.',
           ),
         conversation_date: z
           .string()
@@ -177,7 +184,10 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
         "Returns both halves of a note in the user's own Recall vault, without their " +
         "frontmatter. This is NOT Claude's built-in memory. Call this before updating a " +
         'note, so the rewrite folds into what is really there instead of what you ' +
-        'remember writing.',
+        'remember writing. For answering a question from the vault rather than editing ' +
+        'it, prefer `recall_context` instead, which also applies the attribution and ' +
+        'conflict-resolution rules; reach for this one only when you already know you ' +
+        'need a single specific note in full.',
       inputSchema: {
         path: z
           .string()
@@ -217,11 +227,17 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
         'carries attribution tags: [decision] is something the user decided, [agreed] ' +
         'something they agreed to, [suggested] your own suggestion, [assumption] something ' +
         'assumed rather than confirmed, [claim] a fact you brought in from your own ' +
-        'knowledge rather than from the user. When notes disagree, resolve it in this ' +
-        'order: what the user says right now outranks everything here; failing that, a ' +
-        'decision outranks an agreement, which outranks a suggestion, which outranks an ' +
-        'assumption, which outranks a claim; between two of the same kind, the more recent ' +
-        'one holds. Newer never simply beats older on its own — a decision from months ago ' +
+        'knowledge rather than from the user. [corrected] and [superseded] each read as ' +
+        '"X, then Y" on one line: [corrected] when X was believed and turned out wrong, ' +
+        '[superseded] when X was decided or agreed to and a later conversation ' +
+        'deliberately replaced it, not an error, a change of course. Either way X is ' +
+        'history, never a live candidate, no matter its own kind or how recent it is; ' +
+        'only Y counts, ranked at whatever tag it actually carries now. When notes ' +
+        'disagree, resolve it in this order: what the user says right now outranks ' +
+        'everything here; failing that, a decision outranks an agreement, which outranks ' +
+        'a suggestion, which outranks an assumption, which outranks a claim; between two ' +
+        'of the same kind, the more recent one holds. Newer never simply beats older on ' +
+        'its own — a decision from months ago ' +
         'still outranks a suggestion from yesterday. If you cannot tell which position the ' +
         'user still holds, say so plainly rather than picking one.',
       inputSchema: {
@@ -248,15 +264,39 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
     },
   );
 
+  const textEdit = z.object({
+    old_str: z
+      .string()
+      .min(1, 'old_str cannot be empty, there is nothing there to anchor a replacement to.')
+      .describe(
+        'Exact text to find, copied from what `recall_read_note` returned for this ' +
+          'half, whitespace included. Must match exactly once; a close paraphrase is ' +
+          'refused rather than guessed at.',
+      ),
+    new_str: z.string().describe('Text to put in its place.'),
+  });
+
   server.registerTool(
     'recall_update_note',
     {
       title: 'Update a note in the Recall vault',
       description:
-        "Replaces both halves of a note in the user's own Recall vault, keeping the " +
-        "version it replaced in the archive. This is NOT Claude's built-in memory. Pass " +
-        'the rewritten whole note, not the new part alone. Refuses a path with no note ' +
-        'at it, so a new subject goes to `recall_save_note`.\n\n' +
+        "Changes one or both halves of a note in the user's own Recall vault, keeping " +
+        "the version it replaced in the archive. This is NOT Claude's built-in memory. " +
+        'Refuses a path with no note at it, so a new subject goes to `recall_save_note`.\n\n' +
+        'Prefer `content_edits` / `detail_edits` over resending a whole half: give the ' +
+        'exact text to change, copied from what `recall_read_note` returned, and its ' +
+        'replacement, and the server applies it. Use this for adding one item, ' +
+        'correcting one sentence, or removing one thing. Each `old_str` must match the ' +
+        "note's current text exactly and only once; retyping a half from memory instead " +
+        'of matching it exactly is where updates used to go wrong. Leaving both ' +
+        '`content`/`content_edits` out leaves the readable half exactly as it is; same ' +
+        'for `detail`/`detail_edits`. At least one of the four is required.\n\n' +
+        'Pass `content` or `detail` as whole text only for a real restructuring, not a ' +
+        'small change. That is still the rewritten whole half, old material folded ' +
+        'together with new, not the new part alone, and it is rejected immediately if ' +
+        'it is much shorter than what the note already held, so do not send a short ' +
+        'draft to see whether it is accepted, that only buys a failed call and a retry.\n\n' +
         'Only as part of a save you have already been given the instructions for. If ' +
         'neither `recall_save_conversation` nor the `save-memory` prompt has run in this ' +
         'conversation, call `recall_save_conversation` first and follow what it returns.',
@@ -266,18 +306,31 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
           .describe('Vault-relative path of the note being updated, as `recall_read_note` took it.'),
         content: z
           .string()
+          .optional()
           .describe(
-            'The rewritten READABLE half, whole: old material folded together with new, ' +
+            'Whole rewritten READABLE half, old material folded together with new, ' +
               'corrections applied, still prose written to the user as "you", no bracket ' +
-              'tags. Starts with its "# " heading.',
+              'tags, starting with its "# " heading. Only for a real restructuring; for a ' +
+              'small change use content_edits instead. Omit to leave this half unchanged.',
           ),
+        content_edits: z
+          .array(textEdit)
+          .optional()
+          .describe('Targeted changes to the readable half. See content_edits/detail_edits above.'),
         detail: z
           .string()
+          .optional()
           .describe(
-            'The rewritten DETAIL half, whole: tagged bullets ([decision], [agreed], ' +
-              '[suggested], [assumption], [corrected]) with evidence and confidence. ' +
-              'Starts with its "# " heading.',
+            'Whole rewritten DETAIL half, tagged bullets ([decision], [agreed], ' +
+              '[suggested], [assumption], [corrected], [superseded]) with evidence and ' +
+              'confidence, starting with its "# " heading. Only for a real ' +
+              'restructuring; for a small change use detail_edits instead. Omit to ' +
+              'leave this half unchanged.',
           ),
+        detail_edits: z
+          .array(textEdit)
+          .optional()
+          .describe('Targeted changes to the detail half. See content_edits/detail_edits above.'),
         conversation_date: z
           .string()
           .optional()
@@ -304,21 +357,27 @@ export async function createServer(vaultRoot: string = VAULT_ROOT): Promise<McpS
     async ({
       path: notePath,
       content,
+      content_edits,
       detail,
+      detail_edits,
       conversation_date,
       conversation_date_basis,
       dropping,
     }) => {
+      const describe = (whole: string | undefined, edits: { old_str: string; new_str: string }[] | undefined) =>
+        edits ? `${edits.length} edit(s)` : whole !== undefined ? `${whole.length}b whole` : 'unchanged';
       log(
         vaultRoot,
         `recall_update_note called: path=${notePath} ` +
-          `content=${content?.length ?? 0}b detail=${detail?.length ?? 0}b`,
+          `content=${describe(content, content_edits)} detail=${describe(detail, detail_edits)}`,
       );
       try {
         const written = await updateNote(vaultRoot, {
           path: notePath,
           content,
+          contentEdits: content_edits?.map((edit) => ({ oldStr: edit.old_str, newStr: edit.new_str })),
           detail,
+          detailEdits: detail_edits?.map((edit) => ({ oldStr: edit.old_str, newStr: edit.new_str })),
           conversationDate: conversation_date,
           conversationDateBasis: conversation_date_basis,
           dropping,

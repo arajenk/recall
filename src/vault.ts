@@ -41,14 +41,19 @@ export async function listFolders(vaultRoot: string): Promise<string[]> {
   async function walk(dir: string, prefix: string): Promise<void> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
-      if (!prefix && entry.name === DETAIL_ROOT) continue;
+    // Sibling subfolders don't depend on each other, so walking them
+    // concurrently rather than one at a time is free: the result is sorted
+    // below regardless of which one finishes first.
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) return;
+        if (!prefix && entry.name === DETAIL_ROOT) return;
 
-      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-      folders.push(relative);
-      await walk(path.join(dir, entry.name), relative);
-    }
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        folders.push(relative);
+        await walk(path.join(dir, entry.name), relative);
+      }),
+    );
   }
 
   await walk(path.resolve(vaultRoot), '');
@@ -69,17 +74,21 @@ export async function listNotes(vaultRoot: string): Promise<string[]> {
   async function walk(dir: string, prefix: string): Promise<void> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (entry.name.startsWith('.')) continue;
-      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    // Same reasoning as listFolders: siblings are independent, and the final
+    // list is sorted below, so there is no ordering to preserve here.
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (entry.name.startsWith('.')) return;
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
 
-      if (entry.isDirectory()) {
-        if (!prefix && entry.name === DETAIL_ROOT) continue;
-        await walk(path.join(dir, entry.name), relative);
-      } else if (entry.name.endsWith('.md')) {
-        notes.push(relative);
-      }
-    }
+        if (entry.isDirectory()) {
+          if (!prefix && entry.name === DETAIL_ROOT) return;
+          await walk(path.join(dir, entry.name), relative);
+        } else if (entry.name.endsWith('.md')) {
+          notes.push(relative);
+        }
+      }),
+    );
   }
 
   await walk(path.resolve(vaultRoot), '');

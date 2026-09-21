@@ -164,8 +164,10 @@ Restart Claude Desktop after setup or uninstall to pick up the change.
 Phase 3. A conversation that continues a subject already in the vault updates that note
 instead of filing a near-duplicate. The `save-memory` prompt carries the full note
 inventory, so the model decides create or update on its own with no extra step for the
-user. `recall_read_note` returns both halves without their frontmatter, and
-`recall_update_note` replaces both, keeping the superseded version under
+user. `recall_read_note` returns both halves without their frontmatter. `recall_update_note`
+can replace a whole half with `content`/`detail`, or patch it with `content_edits`/
+`detail_edits`, an `old_str`/`new_str` pair per change matched exactly and only once, the
+same contract the `Edit` tool itself uses. Either way it keeps the superseded version under
 `.recall/archive/<folder>/<title>/<timestamp>.md`.
 
 `recall_save_note` stays create-only on purpose. A title collision is far more often two
@@ -326,6 +328,78 @@ failing, which is a slow thing to work out from scratch.
 The repo is public. Keep examples generic (`Work/Acme`, `Projects/Sidecar`) rather than
 using real project names.
 
+**`recall_update_note` used to fail its first attempt more often than not, and the first
+fix for that did not work.** `~/Recall/.recall/server.log` from 2026-09-15 showed the
+model calling it with a `detail` of a few dozen bytes against a note whose detail half ran
+to thousands, tripping the retention floor, then retrying with the real content seconds
+later. The first fix, also 2026-09-16, added a line to the extraction prompt and the tool
+description saying not to send a short draft, and put the current and attempted lengths in
+the refusal message. It made things worse: the next real save took five attempts and six
+minutes on one note. Wording could not fix this, because the actual problem was the model
+being asked to retype a 10-15KB detail half from memory across a tool call boundary, and
+it kept choosing a short draft over a faithful but effortful full reproduction.
+
+Fixed for real the same day by changing what the tool asks for instead of asking harder for
+the same thing. `recall_update_note` now takes `content_edits`/`detail_edits`, an array of
+`{old_str, new_str}` pairs applied to the half's current text, the same contract the `Edit`
+tool itself uses. `old_str` must match what `recall_read_note` returned exactly and exactly
+once, or the call is refused naming what did not match, rather than guessing. An update
+that adds one bullet or fixes one sentence no longer requires regenerating everything around
+it, which is what was actually failing. Whole-text `content`/`detail` is still there for a
+real restructuring, and the retention floor still checks whatever the edits produce, so the
+invariant above is unchanged. `resolveHalf`/`applyEdits` in `notes.ts` do the work; covered
+by `notes.test.ts` and two end-to-end cases in `server.test.ts`. Not yet confirmed against a
+real conversation, only against the test suite; the log is the thing to check next.
+
+**A decision that changes later had no way to say so, and now does: `[superseded]`.**
+Before this, a decision recorded in one conversation and reversed in a later one had two
+bad outcomes. Either the update left both `[decision]` lines sitting in the note with no
+signal which one still held, which `recall_context`'s ranking (decision > agreement >
+suggestion > assumption > claim, then recency within a kind) cannot resolve on its own
+since both lines share a kind and the note only carries one `updated` date for the whole
+thing, not one per line. Or the model quietly dropped the old line to avoid that, which is
+exactly the destructive rewrite the retention floor exists to catch. `[superseded]` gives a
+third option, the same shape as the existing `[corrected]` tag (kept both halves, one line,
+"X, then Y"), but for a choice that changed rather than a belief that was wrong: `[decision]
+Chose Rust for the backend` becomes `[superseded] Chose Rust for the backend → switched to
+Python once build times became a blocker`, and the new position gets its own line with
+whatever tag it actually carries now. `recall_context`'s description now says plainly that
+the position before the arrow in a `[corrected]` or `[superseded]` line is history, never a
+live candidate regardless of its kind or recency; only the position after the arrow enters
+the ranking. This is a prompt and tool-description change only, the same as how
+`[corrected]` already worked with no code enforcement: `notes.ts` does not parse tags, it
+still just stores and returns whatever text the model writes. Touches
+`prompts/extraction-prompt.md`, `prompts/paste-version.md`, and the three tag lists in
+`src/server.ts` (`recall_save_note`, `recall_update_note`, `recall_context`); covered by
+`prompt.test.ts`'s phrase-parity check and a `server.test.ts` assertion on the
+`recall_context` description. Not yet exercised against a real reversed decision in an
+actual conversation, only against the test suite.
+
+**Three small fixes, 2026-09-20, aimed at making context actually easier to pull rather
+than at anything broken.** None of them touch the reconciliation rules themselves.
+
+`searchNotes` in `search.ts` required every query term to appear as an exact substring, so
+"assignments" missed a note that only said "assignment," and "coding" missed one that only
+said "code." It now falls back to a crude stem comparison (longest common English suffixes
+stripped, plus a silent-e variant so "cod" from "coding" also tries "code") only when the
+literal match fails, so a query that already worked keeps working exactly as before; this
+only widens what counts as a match. Covered by two new cases in `search.test.ts`.
+
+`recall_search`'s own description told the model to call `recall_read_note` on a result
+next, which worked against the model actually being steered toward `recall_context` for
+reconciliation, since nothing else in the tool surface pointed the other way once search
+had already said what to do next. `recall_search` now says to call `recall_context` when
+answering a question or when more than one result looks relevant, and reserves
+`recall_read_note` for when a single specific note is already known, e.g. right before
+updating it. `recall_read_note`'s description now says the same thing from its side.
+Covered by a new `server.test.ts` assertion on both descriptions; not yet observed whether
+this actually changes which tool gets called in a real conversation.
+
+`pairPaths` in `notes.ts`, the one function every model-supplied note path passes through,
+now appends `.md` when a path is missing it, since the model has been seen dropping the
+extension when echoing a path back from a `recall_search` result. Additive only: a path
+that already ends in `.md` is untouched. Covered by one new case each in `notes.test.ts`
+for `readNote` and `loadContext`.
 
 ## Explaining your work
 

@@ -113,9 +113,18 @@ export function splitFrontmatter(raw: string): { fields: Record<string, string>;
   return { fields, body: raw.slice(match[0].length).replace(/^\n/, '') };
 }
 
-/** Where both halves of a pair live, relative to the vault. */
+/**
+ * Where both halves of a pair live, relative to the vault. Tolerant of a path
+ * missing its ".md" extension, since the model sometimes echoes one back
+ * without it after reading it off a search result. Appending it here is
+ * strictly additive: a path that already carries it passes through
+ * untouched, so this only recovers a call that would otherwise fail on a
+ * trivial mismatch, it never changes which note a well-formed path resolves
+ * to.
+ */
 function pairPaths(notePath: string): SavedPair {
-  return { note: notePath, detail: `${DETAIL_ROOT}/${notePath}` };
+  const note = notePath.endsWith('.md') ? notePath : `${notePath}.md`;
+  return { note, detail: `${DETAIL_ROOT}/${note}` };
 }
 
 /**
@@ -290,9 +299,25 @@ export async function loadContext(
   return entries;
 }
 
-export interface NoteUpdate extends NoteBodies {
+/** One anchored find-and-replace, the same contract as a text editor's. */
+export interface TextEdit {
+  oldStr: string;
+  newStr: string;
+}
+
+export interface NoteUpdate {
   /** Vault-relative path of the readable half, as `readNote` was given it. */
   path: string;
+  /**
+   * The readable half. Whole text replaces it outright; an edits list changes
+   * only the parts that changed; leaving both out leaves this half exactly as
+   * it is. Passing both is an error, since it is not clear which one wins.
+   */
+  content?: string;
+  contentEdits?: TextEdit[];
+  /** The detail half, on the same terms as `content`/`contentEdits`. */
+  detail?: string;
+  detailEdits?: TextEdit[];
   /**
    * Why this update is allowed to remove material that was already in the note.
    * Required only when it removes a lot of it. See `RETENTION_FLOOR`.
@@ -301,6 +326,61 @@ export interface NoteUpdate extends NoteBodies {
   /** Supplied only to correct or newly establish it; otherwise carried forward. */
   conversationDate?: string;
   conversationDateBasis?: string;
+}
+
+function truncateForError(text: string): string {
+  return text.length > 80 ? `${text.slice(0, 80)}...` : text;
+}
+
+/**
+ * Applies anchored replacements to a note half. Each `oldStr` must appear
+ * exactly once in the text it is applied against (checked against the result
+ * of any earlier edit in the list, not the original, so a later edit can
+ * target text an earlier one just introduced). This exists so an update can
+ * change one bullet or one sentence without the model having to retype
+ * everything around it, which is the actual reason updates were failing
+ * their first attempt: reproducing a whole multi-thousand-character half from
+ * memory is where the model was going wrong, not a wording problem.
+ */
+function applyEdits(original: string, edits: TextEdit[], label: string): string {
+  let result = original;
+  for (const edit of edits) {
+    const occurrences = result.split(edit.oldStr).length - 1;
+    if (occurrences === 0) {
+      throw new Error(
+        `Could not find the text to replace in the ${label} half: ` +
+          `"${truncateForError(edit.oldStr)}". It must match exactly, whitespace ` +
+          `included, copied from what \`recall_read_note\` returned rather than ` +
+          `retyped from memory.`,
+      );
+    }
+    if (occurrences > 1) {
+      throw new Error(
+        `The text to replace in the ${label} half is not unique, it appears ` +
+          `${occurrences} times: "${truncateForError(edit.oldStr)}". Include more of ` +
+          `its surrounding text so it matches only the one place you mean.`,
+      );
+    }
+    result = result.replace(edit.oldStr, edit.newStr);
+  }
+  return result;
+}
+
+/** Resolves one half of an update to its final text: whole, patched, or unchanged. */
+function resolveHalf(
+  original: string,
+  whole: string | undefined,
+  edits: TextEdit[] | undefined,
+  label: string,
+): string {
+  if (whole !== undefined && edits !== undefined) {
+    throw new Error(
+      `Pass either the whole ${label} half or edits to it, not both, for one update.`,
+    );
+  }
+  if (whole !== undefined) return whole;
+  if (edits !== undefined) return applyEdits(original, edits, label);
+  return original;
 }
 
 export interface UpdatedPair extends SavedPair {
@@ -381,6 +461,26 @@ export async function updateNote(
   };
   const previous = splitFrontmatter(originals.note).fields;
 
+  if (
+    update.content === undefined &&
+    update.contentEdits === undefined &&
+    update.detail === undefined &&
+    update.detailEdits === undefined
+  ) {
+    throw new Error(
+      'Nothing to update: pass content, content_edits, detail, or detail_edits.',
+    );
+  }
+
+  const originalBodies = {
+    note: splitFrontmatter(originals.note).body,
+    detail: splitFrontmatter(originals.detail).body,
+  };
+  const resolved = {
+    note: resolveHalf(originalBodies.note, update.content, update.contentEdits, 'readable'),
+    detail: resolveHalf(originalBodies.detail, update.detail, update.detailEdits, 'detail'),
+  };
+
   const stamps = {
     saved: previous.saved ?? isoDate(now),
     updated: isoDate(now),
@@ -390,16 +490,13 @@ export async function updateNote(
     conversationDateBasis: update.conversationDateBasis ?? previous.conversation_date_basis,
   };
   const bodies: SavedPair = {
-    note: frontmatter(stamps, dated, { key: 'detail', path: relative.detail }) + update.content,
-    detail: frontmatter(stamps, dated, { key: 'note', path: relative.note }) + update.detail,
+    note: frontmatter(stamps, dated, { key: 'detail', path: relative.detail }) + resolved.note,
+    detail: frontmatter(stamps, dated, { key: 'note', path: relative.note }) + resolved.detail,
   };
 
   if (!update.dropping?.trim()) {
-    const before = {
-      note: splitFrontmatter(originals.note).body,
-      detail: splitFrontmatter(originals.detail).body,
-    };
-    const after = { note: update.content, detail: update.detail };
+    const before = originalBodies;
+    const after = resolved;
     const label = { note: 'readable', detail: 'detail' };
 
     for (const side of ['note', 'detail'] as const) {
@@ -409,10 +506,13 @@ export async function updateNote(
 
       throw new Error(
         `This update would drop ${Math.round((1 - kept) * 100)}% of the ${label[side]} ` +
-          `half of "${relative.note}". Most of what is in a note came from conversations ` +
+          `half of "${relative.note}" (currently ${before[side].length} characters, yours ` +
+          `is ${after[side].length}). Most of what is in a note came from conversations ` +
           `you cannot see, so it is not yours to cut for seeming irrelevant. Fold your ` +
-          `new material into what is already there and keep the rest. If the material ` +
-          `really is finished with, pass \`dropping\` to say why, and be specific.`,
+          `new material into what is already there, keeping the rest at or near its ` +
+          `current length, and send the whole thing again rather than guessing at a ` +
+          `size. If the material really is finished with, pass \`dropping\` to say why, ` +
+          `and be specific.`,
       );
     }
   }

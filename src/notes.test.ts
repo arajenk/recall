@@ -232,6 +232,20 @@ test('refuses to read a path that escapes the vault', async () => {
   await assert.rejects(() => readNote(root, '../../.ssh/id_rsa'), /outside the vault/);
 });
 
+test('reads a note by a path missing its .md extension, since the model sometimes drops it', async () => {
+  const root = await emptyVault();
+  await saveNote(root, {
+    folder: 'Work',
+    title: 'Renewal',
+    content: '# Renewal\n\nThe readable half.\n',
+    detail: '# Renewal\n\n- [decision] the detail half\n',
+  });
+
+  const read = await readNote(root, 'Work/Renewal');
+
+  assert.equal(read.content, '# Renewal\n\nThe readable half.\n');
+});
+
 const SAVED_AT = new Date('2026-03-01T10:00:00Z');
 const UPDATED_AT = new Date('2026-08-31T19:22:00Z');
 
@@ -452,6 +466,113 @@ test('allows a shrinking update once it says what it is dropping and why', async
   assert.match(await fs.readFile(path.join(root, written.note), 'utf8'), /Short/);
 });
 
+test('applies a targeted edit to one half without touching the other', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await updateNote(
+    root,
+    {
+      path: 'Work/Renewal.md',
+      detailEdits: [
+        { oldStr: '- [decision] the original detail\n', newStr: '- [decision] the original detail\n- [decision] a second one\n' },
+      ],
+    },
+    { now: UPDATED_AT },
+  );
+
+  const note = await fs.readFile(path.join(root, 'Work/Renewal.md'), 'utf8');
+  const detail = await fs.readFile(path.join(root, '_detail/Work/Renewal.md'), 'utf8');
+  assert.match(note, /The original readable half\.\n$/);
+  assert.match(detail, /a second one/);
+});
+
+test('refuses an edit whose old text is not found in the current half', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        { path: 'Work/Renewal.md', detailEdits: [{ oldStr: 'never in the note', newStr: 'x' }] },
+        { now: UPDATED_AT },
+      ),
+    /Could not find the text to replace/,
+  );
+});
+
+test('refuses an edit whose old text matches more than once', async () => {
+  const root = await emptyVault();
+  await saveNote(
+    root,
+    {
+      folder: 'Work',
+      title: 'Repeats',
+      content: '# Repeats\n\nsame line\nsame line\n',
+      detail: '# Repeats\n\n- [decision] one\n',
+    },
+    { now: SAVED_AT },
+  );
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        { path: 'Work/Repeats.md', contentEdits: [{ oldStr: 'same line', newStr: 'changed' }] },
+        { now: UPDATED_AT },
+      ),
+    /not unique, it appears 2 times/,
+  );
+});
+
+test('refuses an update that passes both whole text and edits for the same half', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        {
+          path: 'Work/Renewal.md',
+          content: '# Renewal\n\nWhole replacement.\n',
+          contentEdits: [{ oldStr: 'original', newStr: 'changed' }],
+        },
+        { now: UPDATED_AT },
+      ),
+    /either the whole readable half or edits to it, not both/,
+  );
+});
+
+test('refuses an update that touches neither half', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () => updateNote(root, { path: 'Work/Renewal.md' }, { now: UPDATED_AT }),
+    /Nothing to update/,
+  );
+});
+
+test('still enforces the retention floor when a shrinking edit is applied', async () => {
+  const root = await emptyVault();
+  await savedPair(root);
+
+  await assert.rejects(
+    () =>
+      updateNote(
+        root,
+        {
+          path: 'Work/Renewal.md',
+          contentEdits: [{ oldStr: 'The original readable half.', newStr: '.' }],
+        },
+        { now: UPDATED_AT },
+      ),
+    /would drop.*say why/s,
+  );
+});
+
 test('loads a note detail half with its dates, for feeding back as context', async () => {
   const root = await emptyVault();
   await saveNote(
@@ -509,4 +630,19 @@ test('reports a note whose detail half is missing, instead of loading half a pai
 
   assert.equal(entry.ok, false);
   if (!entry.ok) assert.match(entry.error, /lost its detail half/);
+});
+
+test('loads context by a path missing its .md extension, since the model sometimes drops it', async () => {
+  const root = await emptyVault();
+  await saveNote(root, {
+    folder: 'Work',
+    title: 'Renewal',
+    content: '# Renewal\n\nAcme wants three years.\n',
+    detail: '# Renewal\n\n- [decision] Three years.\n',
+  });
+
+  const [entry] = await loadContext(root, ['Work/Renewal']);
+
+  assert.ok(entry.ok);
+  if (entry.ok) assert.match(entry.detail, /\[decision\] Three years/);
 });

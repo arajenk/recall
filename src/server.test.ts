@@ -149,6 +149,16 @@ test('recall_search says plainly when nothing matches, rather than guessing', as
   assert.match(text(result), /no matching notes/i);
 });
 
+test('recall_search steers a reconciliation question at recall_context, not straight to recall_read_note', async () => {
+  const client = await connect();
+  const tools = (await client.listTools()).tools;
+  const search = tools.find((tool) => tool.name === 'recall_search')?.description ?? '';
+  const readNote = tools.find((tool) => tool.name === 'recall_read_note')?.description ?? '';
+
+  assert.match(search, /call `recall_context`/i);
+  assert.match(readNote, /prefer `recall_context`/i);
+});
+
 test('recall_context returns the detail half, with dates, not the readable half', async () => {
   const root = await tempVault();
   await saveNote(root, {
@@ -187,4 +197,76 @@ test('recall_context describes how to resolve conflicting notes, since it does t
 
   assert.match(description, /what the user says right now outranks/i);
   assert.match(description, /decision.*outranks.*agreement.*outranks.*suggestion/is);
+  assert.match(description, /\[superseded\]/);
+  assert.match(description, /never a live candidate/i);
 });
+
+test('recall_update_note applies a targeted edit end to end, through the real tool schema', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme wants a three year term.\n',
+    detail: '# Renewal terms\n\n- [decision] Three years.\n',
+  });
+
+  const client = await connect(root);
+  const result = await client.callTool({
+    name: 'recall_update_note',
+    arguments: {
+      path: 'Work/Acme/Renewal terms.md',
+      detail_edits: [{ old_str: '- [decision] Three years.\n', new_str: '- [decision] Three years.\n- [decision] Signed.\n' }],
+    },
+  });
+
+  assert.doesNotMatch(text(result).toLowerCase(), /error|refus|could not find/);
+  const note = await fs.readFile(path.join(root, 'Work/Acme/Renewal terms.md'), 'utf8');
+  const detail = await fs.readFile(path.join(root, '_detail/Work/Acme/Renewal terms.md'), 'utf8');
+  assert.match(note, /Acme wants a three year term\./);
+  assert.match(detail, /Signed/);
+});
+
+test('recall_update_note rejects an edit that does not match the note verbatim', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme wants a three year term.\n',
+    detail: '# Renewal terms\n\n- [decision] Three years.\n',
+  });
+
+  const client = await connect(root);
+  const result = await client.callTool({
+    name: 'recall_update_note',
+    arguments: {
+      path: 'Work/Acme/Renewal terms.md',
+      detail_edits: [{ old_str: 'not actually in the note', new_str: 'x' }],
+    },
+  });
+
+  assert.equal(result.isError, true);
+  assert.match(text(result), /Could not find the text to replace/);
+});
+
+test('recall_update_note rejects an edit with an empty old_str before it ever reaches applyEdits', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme wants a three year term.\n',
+    detail: '# Renewal terms\n\n- [decision] Three years.\n',
+  });
+
+  const client = await connect(root);
+  const result = await client.callTool({
+    name: 'recall_update_note',
+    arguments: {
+      path: 'Work/Acme/Renewal terms.md',
+      detail_edits: [{ old_str: '', new_str: 'x' }],
+    },
+  });
+
+  assert.equal(result.isError, true);
+  assert.match(text(result), /old_str cannot be empty/);
+});
+

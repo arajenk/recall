@@ -86,6 +86,8 @@ test('the paste version keeps every rule the canonical prompt depends on', async
     '`[suggested]`',
     '`[assumption]`',
     '`[corrected]`',
+    '`[superseded]`',
+    'Not an error, a change of course',
     '`[context]`',
     '`[claim]`',
     'never record something you generated as something',

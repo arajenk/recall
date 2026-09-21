@@ -54,6 +54,34 @@ test('requires every search term to match, not just one', async () => {
   assert.deepEqual(await searchNotes(root, 'three decade'), []);
 });
 
+test('matches a plural query against a singular word in the note, and back', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme flagged one open assignment before signing.\n',
+    detail: '# Renewal terms\n\n- [decision] Waiting on the assignment.\n',
+  });
+
+  const bySingularQuery = await searchNotes(root, 'open assignment');
+  const byPluralQuery = await searchNotes(root, 'open assignments');
+  assert.equal(bySingularQuery.length, 1);
+  assert.equal(byPluralQuery.length, 1);
+});
+
+test('matches a query against a differently tensed word in the note', async () => {
+  const root = await tempVault();
+  await saveNote(root, {
+    folder: 'Work/Acme',
+    title: 'Renewal terms',
+    content: '# Renewal terms\n\nAcme decided to keep coding in house.\n',
+    detail: '# Renewal terms\n\n- [decision] Kept the work in house.\n',
+  });
+
+  assert.equal((await searchNotes(root, 'decided')).length, 1);
+  assert.equal((await searchNotes(root, 'code')).length, 1);
+});
+
 test('returns no matches for a subject the vault has nothing on', async () => {
   const root = await tempVault();
   await saveNote(root, {

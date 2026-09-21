@@ -49,7 +49,7 @@ The first is what you read: plain prose, no clutter. The `_detail` half is for f
 
 ## Current limitations
 
-Claude Desktop is the only client so far. `recall_search` and `recall_context` work and have run in real conversations, but in ordinary use Claude tends to search and then read a note directly, skipping the reconciliation step, so that part hasn't seen much real use yet. Search can also miss a note on an odd phrasing and needs a retry rather than concluding nothing exists.
+Claude Desktop is the only client so far. `recall_search` and `recall_context` work and have run in real conversations, but in ordinary use Claude tends to search and then read a note directly, skipping the reconciliation step, so that part hasn't seen much real use yet. Search is a keyword match, not a meaning search, though it now tolerates plurals and verb tense (a query for "assignments" finds a note that only says "assignment"); an oddly worded query can still miss a note and is worth retrying differently before concluding nothing exists.
 
 ## Development
 
